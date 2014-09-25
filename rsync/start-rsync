@@ -1,0 +1,1 @@
+rsync --daemon  --verbose --config=$1
