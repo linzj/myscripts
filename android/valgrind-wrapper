@@ -1,0 +1,5 @@
+#ASAN_OPTIONS="log_path=/sdcard/report,fast_unwind_on_malloc=0" \
+#LD_LIBRARY_PATH=/data/local/tmp:$LD_LIBRARY_PATH \
+#LD_PRELOAD=libclang_rt.asan-x86-android.so \
+exec /usr/local/bin/valgrind --log-file=/sdcard/valgrind.log --track-origins=yes --leak-check=full --show-possibly-lost=no  $@
+
