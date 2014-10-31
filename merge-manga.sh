@@ -16,7 +16,6 @@ do_move()
 {
     TARGET="$1"
     FUNCTION_SUFFIX='@('"${SUFFIX}"')'
-    echo $TARGET/*.${FUNCTION_SUFFIX}
     for f in $TARGET/*.${FUNCTION_SUFFIX}
         do
             cp "$f" `printf "$DIR"/%03d.${f#*.} ${COUNT}`
