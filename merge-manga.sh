@@ -1,5 +1,6 @@
 #!/bin/bash
 shopt -s nocaseglob
+shopt -s extglob
 DIR="$1"
 shift
 SUFFIX="$1"
@@ -14,9 +15,11 @@ IFS=`printf "\n"`
 do_move()
 {
     TARGET="$1"
-    for f in $TARGET/*.${SUFFIX}
+    FUNCTION_SUFFIX='@('"${SUFFIX}"')'
+    echo $TARGET/*.${FUNCTION_SUFFIX}
+    for f in $TARGET/*.${FUNCTION_SUFFIX}
         do
-            cp "$f" `printf "$DIR"/%03d.${SUFFIX} ${COUNT}`
+            cp "$f" `printf "$DIR"/%03d.${f#*.} ${COUNT}`
             ((COUNT++))
         done
 }
