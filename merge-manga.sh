@@ -10,15 +10,18 @@ COUNT=1
 
 DIRS="$#"
 
-IFS=`printf "\n"`
 
 do_move()
 {
     TARGET="$1"
     FUNCTION_SUFFIX='@('"${SUFFIX}"')'
-    for f in $TARGET/*.${FUNCTION_SUFFIX}
+    SORTED_FILES=`for f in $TARGET/*.${FUNCTION_SUFFIX}
         do
-            cp "$f" `printf "$DIR"/%03d.${f#*.} ${COUNT}`
+            echo ${f#*/}
+        done | sort -n`
+    for f in $SORTED_FILES
+        do
+            cp "$TARGET/$f" `printf "$DIR"/%03d.${f#*.} ${COUNT}`
             ((COUNT++))
         done
 }
