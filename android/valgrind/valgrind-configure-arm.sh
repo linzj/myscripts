@@ -13,7 +13,7 @@ CPPFLAGS="--sysroot=$NDK_PATH/platforms/android-14/arch-arm -I$NDK_PATH/platform
 LDFLAGS="--sysroot=$NDK_PATH/platforms/android-14/arch-arm" \
 ./configure --host=armv7-linux-androideabi --target=armv7-android-linux \
    --with-tmpdir=/sdcard --prefix=/data/local/tmp/tools/
-if [ $? ]
+if [ $? == 0 ]
 then
     make -j9
 fi
