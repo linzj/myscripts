@@ -1,0 +1,184 @@
+From 7bebd8514a3fc0b9f184116ae9b0c070aa239394 Mon Sep 17 00:00:00 2001
+From: lin zuojian <manjian2006@gmail.com>
+Date: Wed, 15 Oct 2014 15:52:00 +0800
+Subject: [PATCH] for i686 san
+
+---
+ gcc/config/arm/arm.c                                      |  2 +-
+ gcc/config/i386/i386.c                                    |  7 ++++---
+ gcc/passes.def                                            |  2 +-
+ libsanitizer/asan/asan_intercepted_functions.h            |  2 +-
+ libsanitizer/configure                                    |  4 ++--
+ .../sanitizer_common/sanitizer_common_syscalls.inc        |  2 ++
+ .../sanitizer_common/sanitizer_platform_limits_linux.cc   | 15 ---------------
+ .../sanitizer_common/sanitizer_platform_limits_posix.cc   |  2 +-
+ ltmain.sh                                                 |  2 +-
+ 9 files changed, 13 insertions(+), 25 deletions(-)
+
+diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
+index 439a4de..70be721 100644
+--- a/gcc/config/arm/arm.c
++++ b/gcc/config/arm/arm.c
+@@ -31121,7 +31121,7 @@ arm_validize_comparison (rtx *comparison, rtx * op1, rtx * op2)
+ static unsigned HOST_WIDE_INT
+ arm_asan_shadow_offset (void)
+ {
+-  return (unsigned HOST_WIDE_INT) 1 << 29;
++  return 0;
+ }
+ 
+ 
+diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
+index 668c1d1..ad5c16e 100644
+--- a/gcc/config/i386/i386.c
++++ b/gcc/config/i386/i386.c
+@@ -5880,9 +5880,10 @@ ix86_legitimate_combined_insn (rtx insn)
+ static unsigned HOST_WIDE_INT
+ ix86_asan_shadow_offset (void)
+ {
+-  return TARGET_LP64 ? (TARGET_MACHO ? (HOST_WIDE_INT_1 << 44)
+-				     : HOST_WIDE_INT_C (0x7fff8000))
+-		     : (HOST_WIDE_INT_1 << 29);
++//   return TARGET_LP64 ? (TARGET_MACHO ? (HOST_WIDE_INT_1 << 44)
++// 				     : HOST_WIDE_INT_C (0x7fff8000))
++// 		     : (HOST_WIDE_INT_1 << 29);
++  return 0;
+ }
+ 
+ /* Argument support functions.  */
+diff --git a/gcc/passes.def b/gcc/passes.def
+index c98b048..aff3ad6 100644
+--- a/gcc/passes.def
++++ b/gcc/passes.def
+@@ -188,7 +188,7 @@ along with GCC; see the file COPYING3.  If not see
+       /* After CCP we rewrite no longer addressed locals into SSA
+ 	 form if possible.  */
+       NEXT_PASS (pass_copy_prop);
+-      NEXT_PASS (pass_cse_sincos);
++      /* NEXT_PASS (pass_cse_sincos); */
+       NEXT_PASS (pass_optimize_bswap);
+       NEXT_PASS (pass_split_crit_edges);
+       NEXT_PASS (pass_pre);
+diff --git a/libsanitizer/asan/asan_intercepted_functions.h b/libsanitizer/asan/asan_intercepted_functions.h
+index 19b5336..f676967 100644
+--- a/libsanitizer/asan/asan_intercepted_functions.h
++++ b/libsanitizer/asan/asan_intercepted_functions.h
+@@ -50,7 +50,7 @@
+ # define ASAN_INTERCEPT_SWAPCONTEXT 0
+ #endif
+ 
+-#if !SANITIZER_ANDROID && !SANITIZER_WINDOWS
++#if !SANITIZER_WINDOWS
+ # define ASAN_INTERCEPT_SIGNAL_AND_SIGACTION 1
+ #else
+ # define ASAN_INTERCEPT_SIGNAL_AND_SIGACTION 0
+diff --git a/libsanitizer/configure b/libsanitizer/configure
+index 5e4840f..e8bf1ed 100755
+--- a/libsanitizer/configure
++++ b/libsanitizer/configure
+@@ -8562,7 +8562,7 @@ if test "${enable_shared+set}" = set; then :
+     yes) enable_shared=yes ;;
+     no) enable_shared=no ;;
+     *)
+-      enable_shared=no
++      enable_shared=yes
+       # Look at the argument we got.  We use all the common list separators.
+       lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
+       for pkg in $enableval; do
+@@ -15506,7 +15506,7 @@ done
+ 
+ 
+ # Common libraries that we need to link against for all sanitizer libs.
+-link_sanitizer_common='-lpthread -ldl -lm'
++link_sanitizer_common='-ldl -lm'
+ 
+ # Set up the set of additional libraries that we need to link against for libasan.
+ link_libasan=$link_sanitizer_common
+diff --git a/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc b/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
+index 75f7d1d..d298d13 100644
+--- a/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
++++ b/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
+@@ -2287,6 +2287,7 @@ PRE_SYSCALL(ni_syscall)() {}
+ 
+ POST_SYSCALL(ni_syscall)(long res) {}
+ 
++#if !SANITIZER_ANDROID
+ PRE_SYSCALL(ptrace)(long request, long pid, long addr, long data) {
+ #if defined(__i386) || defined (__x86_64)
+   if (data) {
+@@ -2330,6 +2331,7 @@ POST_SYSCALL(ptrace)(long res, long request, long pid, long addr, long data) {
+   }
+ #endif
+ }
++#endif
+ 
+ PRE_SYSCALL(add_key)(const void *_type, const void *_description,
+                      const void *_payload, long plen, long destringid) {
+diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
+index ac56f33..0196673 100644
+--- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
++++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
+@@ -73,12 +73,6 @@ COMPILER_CHECK(struct_kernel_stat_sz == sizeof(struct stat));
+ COMPILER_CHECK(struct_kernel_stat64_sz == sizeof(struct stat64));
+ #endif
+ 
+-CHECK_TYPE_SIZE(io_event);
+-CHECK_SIZE_AND_OFFSET(io_event, data);
+-CHECK_SIZE_AND_OFFSET(io_event, obj);
+-CHECK_SIZE_AND_OFFSET(io_event, res);
+-CHECK_SIZE_AND_OFFSET(io_event, res2);
+-
+ #if !SANITIZER_ANDROID
+ COMPILER_CHECK(sizeof(struct __sanitizer_perf_event_attr) <=
+                sizeof(struct perf_event_attr));
+@@ -93,14 +87,5 @@ COMPILER_CHECK(iocb_cmd_preadv == IOCB_CMD_PREADV);
+ COMPILER_CHECK(iocb_cmd_pwritev == IOCB_CMD_PWRITEV);
+ #endif
+ 
+-CHECK_TYPE_SIZE(iocb);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_data);
+-// Skip aio_key, it's weird.
+-CHECK_SIZE_AND_OFFSET(iocb, aio_lio_opcode);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_reqprio);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_fildes);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_buf);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_nbytes);
+-CHECK_SIZE_AND_OFFSET(iocb, aio_offset);
+ 
+ #endif  // SANITIZER_LINUX
+diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
+index 196eb3b..c469396 100644
+--- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
++++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
+@@ -163,7 +163,6 @@ namespace __sanitizer {
+   unsigned struct_old_utsname_sz = sizeof(struct old_utsname);
+   unsigned struct_oldold_utsname_sz = sizeof(struct oldold_utsname);
+   unsigned struct_itimerspec_sz = sizeof(struct itimerspec);
+-  unsigned struct_ustat_sz = sizeof(struct ustat);
+ #endif // SANITIZER_LINUX
+ 
+ #if SANITIZER_LINUX && !SANITIZER_ANDROID
+@@ -173,6 +172,7 @@ namespace __sanitizer {
+   unsigned struct_mq_attr_sz = sizeof(struct mq_attr);
+   unsigned struct_statvfs_sz = sizeof(struct statvfs);
+   unsigned struct_statvfs64_sz = sizeof(struct statvfs64);
++  unsigned struct_ustat_sz = sizeof(struct ustat);
+ #endif // SANITIZER_LINUX && !SANITIZER_ANDROID
+ 
+   uptr sig_ign = (uptr)SIG_IGN;
+diff --git a/ltmain.sh b/ltmain.sh
+index 9503ec8..6db31ed 100644
+--- a/ltmain.sh
++++ b/ltmain.sh
+@@ -7087,7 +7087,7 @@ EOF
+ 	*) new_libs="$new_libs $deplib" ;;
+ 	esac
+       done
+-      deplibs="$new_libs"
++      deplibs="-lgcc $new_libs"
+ 
+       # All the library-specific variables (install_libdir is set above).
+       library_names=
+-- 
+2.1.0
+
