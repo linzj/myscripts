@@ -64,6 +64,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f = StringIO()
         f.write('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">')
         f.write("<html>\n<title>Upload Result Page</title>\n")
+        f.write("<meta charset=\"UTF-8\">\n")
         f.write("<body>\n<h2>Upload Result Page</h2>\n")
         f.write("<hr>\n")
         if r:
@@ -98,7 +99,8 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if not fn:
             return (False, "Can't find out file name...")
         path = self.translate_path(self.path)
-        fn = os.path.join(path, fn[0])
+        fileName = fn[0]
+        fn = os.path.join(path, fileName)
         while os.path.exists(fn):
             fn += "_"
         line = self.rfile.readline()
@@ -191,7 +193,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f.write("<html>\n<title>Directory listing for %s</title>\n" % displaypath)
         f.write("<body>\n<h2>Directory listing for %s</h2>\n" % displaypath)
         f.write("<hr>\n")
-        f.write("<form ENCTYPE=\"multipart/form-data\" method=\"post\">")
+        f.write("<form ENCTYPE=\"multipart/form-data\" method=\"post\" accept-charset=\"UTF-8\">")
         f.write("<input name=\"file\" type=\"file\"/>")
         f.write("<input type=\"submit\" value=\"upload\"/></form>\n")
         f.write("<hr>\n<ul>\n")
