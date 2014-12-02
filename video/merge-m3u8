@@ -1,0 +1,11 @@
+#!/bin/sh
+FILELIST=$1
+OUTPUTFILE=$2
+
+if [ $# -le 1 ]
+    then
+    echo 'usage: <file list file> <output file>'
+    exit 1
+fi
+
+xargs cat <$FILELIST | avconv -i pipe:0 -acodec copy -vcodec copy $OUTPUTFILE
