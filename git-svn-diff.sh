@@ -13,10 +13,15 @@ else
     COMMIT=HEAD^
 fi     
 
-echo $COMMIT
+if [ $# -ge 2 ]
+then
+    HEAD=$2
+else
+    HEAD="HEAD"
+fi
 
 REV=`git svn find-rev $COMMIT`
-git diff $COMMIT HEAD --no-prefix |
+git diff $COMMIT $HEAD --no-prefix |
 sed -e "s/^+++ .*/&    (working copy)/" -e "s/^--- .*/&    (revision $REV)/" \
 -e "s/^diff --git [^[:space:]]*/Index:/" \
 -e "s/^index.*/===================================================================/"
