@@ -8,4 +8,4 @@ if [ $# -le 1 ]
     exit 1
 fi
 
-xargs cat <$FILELIST | avconv -i pipe:0 -acodec copy -vcodec copy $OUTPUTFILE
+xargs cat <$FILELIST | avconv -i pipe:0 -strict experimental -c:a aac -c:v copy $OUTPUTFILE
