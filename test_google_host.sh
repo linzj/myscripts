@@ -1,7 +1,7 @@
 #74.125.200.1
 test_main ()
 {
-    curl -H 'HOST: www.google.com'  -X GET $1 -w %{http_code} -o /dev/null -s | grep 200 >/dev/null
+    curl -H 'HOST: www.google.com'  -X GET https://$1 -w %{http_code} -o /dev/null -s | grep 200 >/dev/null
 }
 
 test_1 ()
