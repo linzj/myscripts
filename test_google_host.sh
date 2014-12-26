@@ -29,12 +29,12 @@ test_1 ()
 
 test_2 ()
 {
-    COUNT=1
+    COUNT_2=1
     OTHER_2=$1
-    while [ $COUNT -ne 255 ]
+    while [ $COUNT_2 -ne 255 ]
         do
-            test_1 $OTHER_2.$COUNT
-            ((++COUNT))
+            test_1 $OTHER_2.$COUNT_2
+            ((++COUNT_2))
         done
 }
 
