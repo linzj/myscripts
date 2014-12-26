@@ -27,4 +27,15 @@ test_1 ()
         done
 }
 
-test_1 74.124.200
+test_2 ()
+{
+    COUNT=1
+    OTHER=$1
+    while [ $COUNT -ne 255 ]
+        do
+            test_1 $OTHER.$COUNT
+            ((++COUNT))
+        done
+}
+
+test_2 74.124
