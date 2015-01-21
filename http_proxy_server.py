@@ -119,7 +119,7 @@ class header_handler (object):
                 self.filter_headers ()
                 self.is_end_ = True
                 output_data = self.write_header ()
-                print "Respond headers:\n%s" % output_data
+                #print "Respond headers:\n%s" % output_data
                 return (passthrough_handler (), output_data, input_data)
             if not h:
                 return (self, None, input_data) 
@@ -272,7 +272,7 @@ class ConnectionHandler:
                         out = self.target
                     else:
                         out = self.client
-                        should_filter = True
+                        should_filter = self.method in ('GET', 'POST')
                     if data:
                         if should_filter:
                             data = self.respond_filter_.filter (data)
@@ -285,6 +285,7 @@ class ConnectionHandler:
             if count == time_out_max:
                 break
     def save (self, data):
+        return
         p = self.path
         last_slash = p.rfind ('/')
         if last_slash != -1:
