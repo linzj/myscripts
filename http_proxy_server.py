@@ -81,7 +81,7 @@ Qual a diferença entre um proxy Elite, Anónimo e Transparente?
 
 """
 
-import socket, thread, select, datetime, traceback, sys
+import socket, thread, select, datetime, traceback, sys, os
 
 __version__ = '0.1.0 Draft 1'
 BUFLEN = 8192
@@ -89,6 +89,8 @@ VERSION = 'Python Proxy/'+__version__
 HTTPVER = 'HTTP/1.1'
 socket_set = set ()
 socket_set_lock = thread.allocate_lock ()
+# a map with key, file name
+#substitution_map = {}
 
 def add_socket (s):
     global socket_set, socket_set_lock
@@ -98,10 +100,25 @@ def add_socket (s):
     finally:
         socket_set_lock.release ()
 
-class passthrough_handler (object):
-    def __init__(self):
+class passempty_handler (object):
+    def __init__ (self):
         pass
-    def handle (self, input_data):
+    def handle (self, input_data, path):
+        return (self, "", "")
+
+class substitution_handler (object):
+    def __init__ (self):
+        pass
+    def handle (self, input_data, path):
+        with open(substitution_map[path], 'r') as f:
+            print 'substitutiond %s' % path
+            return (passempty_handler (), f.read (), "")
+
+
+class passthrough_handler (object):
+    def __init__ (self):
+        pass
+    def handle (self, input_data, path):
         return (self, input_data, "")
 
 
@@ -110,17 +127,20 @@ class header_handler (object):
         self.headers_ = []
         self.is_end_ = False
         pass
-    def handle (self, input_data):
+    def handle (self, input_data, path):
         while True:
             h, is_end, input_data = self.parse_header (input_data)
             if h:
                 self.headers_.append (h)
             if is_end:
-                self.filter_headers ()
+                self.filter_headers (path)
                 self.is_end_ = True
                 output_data = self.write_header ()
                 #print "Respond headers:\n%s" % output_data
-                return (passthrough_handler (), output_data, input_data)
+                if path and path in substitution_map:
+                    return (substitution_handler (), output_data, input_data)
+                else:
+                    return (passthrough_handler (), output_data, input_data)
             if not h:
                 return (self, None, input_data) 
 
@@ -137,28 +157,34 @@ class header_handler (object):
         comm = line.find (':')
         return (line[:comm], line[comm + 1:].lstrip ())
 
-    def filter_out_cache_control (self):
-        new_headers = []
-        for h in self.headers_:
-            if h[0].lower () == 'cache-control':
-                continue
-            new_headers.append (h)
-        self.headers_ = new_headers
+    def filter_out_key (self, key):
+        for i in range(len(self.headers_)):
+            h = self.headers_[i]
+            if h[0].lower () == key:
+                del self.headers_[i]
+                break
 
     def write_header (self):
         output = "\r\n".join (["%s: %s" % (h[0], h[1]) for h in self.headers_])
 
         return output + "\r\n\r\n"
 
-    def filter_headers (self):
-        self.filter_out_cache_control ()
+    def filter_headers (self, path):
+        self.filter_out_key ('cache-control')
+        self.substitution_content_length (path)
         self.headers_.append (('Cache-Control', 'no-store, no-cache, must-validate, max-age=0',))
         self.headers_.append (('Connection', 'closed',))
+
+    def substitution_content_length (self, path):
+        if path and path in substitution_map:
+            size = os.stat (substitution_map[path]).st_size
+            self.filter_out_key ('content-length')
+            self.headers_.append (('Content-Length', '%d' % size,))
 
 class respond_handler (object):
     def __init__ (self):
         pass
-    def handle (self, input_data):
+    def handle (self, input_data, path):
         end_line = input_data.find ('\r\n')
         if end_line == -1:
             return (this, None, input_data)
@@ -175,12 +201,12 @@ class respond_filter (object):
     def reset_state (self):
         self.handler_ = respond_handler ()
 
-    def filter (self, data):
+    def filter (self, data, path):
         self.data_ += data
         response_data = ""
         while True:
             old_handler = self.handler_
-            new_handler, _response_data, self.data_ = old_handler.handle (self.data_)
+            new_handler, _response_data, self.data_ = old_handler.handle (self.data_, path)
             self.handler_ = new_handler
             if _response_data:
                 response_data += _response_data
@@ -275,7 +301,14 @@ class ConnectionHandler:
                         should_filter = self.method in ('GET', 'POST')
                     if data:
                         if should_filter:
-                            data = self.respond_filter_.filter (data)
+                            pass_path = self.path
+                            last_slash = pass_path.rfind ('/')
+                            if last_slash != -1:
+                                pass_path = pass_path[last_slash + 1:]
+                            question_mark = pass_path.find('?')
+                            if question_mark != -1:
+                                pass_path = pass_path[:question_mark]
+                            data = self.respond_filter_.filter (data, pass_path)
                         if not data:
                             continue
                         out.send (data)
@@ -315,6 +348,12 @@ def start_server(host='0', port=8080, IPv6=False, timeout=60,
         thread.start_new_thread(handler, args)
 
 if __name__ == '__main__':
+    try:
+        global substitution_map
+        with open ("substitution.map", "r") as f:
+            substitution_map = eval (f.read ())
+    except:
+        traceback.print_exc (file=sys.stderr)
     try:
         start_server()
     except Exception as e:

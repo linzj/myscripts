@@ -170,6 +170,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         fs = os.fstat(f.fileno())
         self.send_header("Content-Length", str(fs[6]))
         self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
+        self.send_header("Cache-Control", "no-store, no-cache, must-validate, max-age=0")
         self.end_headers()
         return f
 
