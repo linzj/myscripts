@@ -92,6 +92,22 @@ socket_set_lock = thread.allocate_lock ()
 # a map with key, file name
 #substitution_map = {}
 
+class byte_buffer (object):
+    def __init__ (self):
+        self.data_ = ""
+
+    def append (self, data):
+        self.data_ += data
+
+    def consume (self, length):
+        self.data_ = self.data_[length:]
+
+    def dry (self):
+        self.data_ = ""
+
+    def data (self):
+        return self.data_
+
 def add_socket (s):
     global socket_set, socket_set_lock
     socket_set_lock.acquire ()
@@ -103,23 +119,28 @@ def add_socket (s):
 class passempty_handler (object):
     def __init__ (self):
         pass
-    def handle (self, input_data, path):
-        return (self, "", "")
+    def handle (self, input_buffer, path):
+        input_buffer.dry ()
+        return (self, "")
 
 class substitution_handler (object):
     def __init__ (self):
         pass
-    def handle (self, input_data, path):
+    def handle (self, input_buffer, path):
+        input_buffer.dry ()
         with open(substitution_map[path], 'r') as f:
             print 'substitutiond %s' % path
-            return (passempty_handler (), f.read (), "")
+            return (passempty_handler (), f.read ())
 
 
 class passthrough_handler (object):
     def __init__ (self):
         pass
-    def handle (self, input_data, path):
-        return (self, input_data, "")
+
+    def handle (self, input_buffer, path):
+        output_data = input_buffer.data ()
+        input_buffer.dry ()
+        return (self, output_data)
 
 
 class header_handler (object):
@@ -127,9 +148,10 @@ class header_handler (object):
         self.headers_ = []
         self.is_end_ = False
         pass
-    def handle (self, input_data, path):
+
+    def handle (self, input_buffer, path):
         while True:
-            h, is_end, input_data = self.parse_header (input_data)
+            h, is_end = self.parse_header (input_buffer)
             if h:
                 self.headers_.append (h)
             if is_end:
@@ -138,20 +160,23 @@ class header_handler (object):
                 output_data = self.write_header ()
                 #print "Respond headers:\n%s" % output_data
                 if path and path in substitution_map:
-                    return (substitution_handler (), output_data, input_data)
+                    return (substitution_handler (), output_data)
                 else:
-                    return (passthrough_handler (), output_data, input_data)
+                    return (passthrough_handler (), output_data)
             if not h:
-                return (self, None, input_data) 
+                return (self, None)
 
-    def parse_header (self, input_data):
+    def parse_header (self, input_buffer):
+        input_data = input_buffer.data ()
         end_line = input_data.find ('\r\n')
         if end_line == -1:
-            return (None, False, input_data)
+            return (None, False)
         if end_line == 0:
-            return (None, True, input_data[2:])
+            input_buffer.consume (2)
+            return (None, True)
         h = self.parse_header_line (input_data[:end_line])
-        return (h, False, input_data[end_line + 2:])
+        input_buffer.consume (end_line + 2)
+        return (h, False)
 
     def parse_header_line (self, line):
         comm = line.find (':')
@@ -179,22 +204,25 @@ class header_handler (object):
         if path and path in substitution_map:
             size = os.stat (substitution_map[path]).st_size
             self.filter_out_key ('content-length')
+            self.filter_out_key ('transfer-encoding')
             self.headers_.append (('Content-Length', '%d' % size,))
 
 class respond_handler (object):
     def __init__ (self):
         pass
-    def handle (self, input_data, path):
+    def handle (self, input_buffer, path):
+        input_data = input_buffer.data ()
         end_line = input_data.find ('\r\n')
         if end_line == -1:
-            return (this, None, input_data)
+            return (this, None)
+        input_buffer.consume (end_line + 2)
         r = input_data[:end_line + 2]
         print "Respond :%s" % r
-        return (header_handler (), r, input_data[end_line + 2:])
+        return (header_handler (), r)
 
 class respond_filter (object):
     def __init__ (self):
-        self.data_ = ""
+        self.buffer_ = byte_buffer ()
         self.handler_ = None
         self.reset_state ()
 
@@ -202,11 +230,11 @@ class respond_filter (object):
         self.handler_ = respond_handler ()
 
     def filter (self, data, path):
-        self.data_ += data
+        self.buffer_.append (data)
         response_data = ""
         while True:
             old_handler = self.handler_
-            new_handler, _response_data, self.data_ = old_handler.handle (self.data_, path)
+            new_handler, _response_data = old_handler.handle (self.buffer_, path)
             self.handler_ = new_handler
             if _response_data:
                 response_data += _response_data
