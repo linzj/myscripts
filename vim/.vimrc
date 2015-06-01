@@ -41,10 +41,12 @@ function! s:insert_gates()
   normal! kk
 endfunction
 map <C-F10>a :call <SID>insert_gates() <CR>
-set guifont=Ubuntu\ Mono\ 16
+set guifont=Ubuntu\ Mono\ 18
 set cscopequickfix=s-,c-,d-,i-,t-,e-
 set showcmd
 if has("autocmd")
   au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
 endif
-
+nnoremap <silent> <F12> :bn<CR>
+nnoremap <silent> <S-F12> :bp<CR>
+au VimEnter * if &diff | execute 'windo set wrap' | endif
