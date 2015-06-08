@@ -196,6 +196,7 @@ class header_handler (object):
 
     def filter_headers (self, path):
         self.filter_out_key ('cache-control')
+        self.filter_out_key ('content-encoding')
         self.substitution_content_length (path)
         self.headers_.append (('Cache-Control', 'no-store, no-cache, must-validate, max-age=0',))
         self.headers_.append (('Connection', 'closed',))
@@ -330,9 +331,6 @@ class ConnectionHandler:
                     if data:
                         if should_filter:
                             pass_path = self.path
-                            last_slash = pass_path.rfind ('/')
-                            if last_slash != -1:
-                                pass_path = pass_path[last_slash + 1:]
                             question_mark = pass_path.find('?')
                             if question_mark != -1:
                                 pass_path = pass_path[:question_mark]
