@@ -196,7 +196,8 @@ class header_handler (object):
 
     def filter_headers (self, path):
         self.filter_out_key ('cache-control')
-        self.filter_out_key ('content-encoding')
+        if path and path in substitution_map:
+            self.filter_out_key ('content-encoding')
         self.substitution_content_length (path)
         self.headers_.append (('Cache-Control', 'no-store, no-cache, must-validate, max-age=0',))
         self.headers_.append (('Connection', 'closed',))
