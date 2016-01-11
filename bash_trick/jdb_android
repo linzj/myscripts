@@ -1,0 +1,34 @@
+#!/bin/bash
+
+PIDS=($(adb jdwp))
+
+gawk -f <(cat - <<-'_EOF_'
+   BEGIN  {
+           for (i = 0; i < ARGC; i++) {
+               pids[ARGV[i]] = 1
+           }
+           num = 0;
+           while ("adb shell ps" | getline line) {
+               split(line, fields, " ")
+               if (pids[fields[2]] == 1) {
+                   print num ":" fields[2] ":" fields[9]
+                   app[num] = fields[9]
+                   out[num] = fields[2]
+                   num++
+               }
+           }
+        }
+_EOF_
+)  ${PIDS[*]}
+echo Select your app to jdb
+read MENU
+
+FINAL_PID=${PIDS[$MENU]}
+JDB_PORT=8703
+
+#org.chromium.android_webview.AwContents.AwContents
+echo debuging $FINAL_PID #org.chromium.android_webview.AwSiteZoomScaleRecorder.instance
+
+adb forward --remove tcp:$JDB_PORT
+adb forward tcp:$JDB_PORT jdwp:$FINAL_PID
+jdb -attach localhost:$JDB_PORT -sourcepath /opt/dk2/u4w/u4/src/uc/android_webview/java/src/:/opt/dk2/u4w/u4/src/uc/java_map/map_chromium_src/android_webview/java/src/
