@@ -1,14 +1,36 @@
-commit 7bebd8514a3fc0b9f184116ae9b0c070aa239394
+commit b99c293c69ed571c582f8ec85eedb141286da8c5
 Author: lin zuojian <manjian2006@gmail.com>
-Date:   Wed Oct 15 15:52:00 2014 +0800
+Date:   Mon May 11 14:27:53 2015 +0800
 
-    for i686 san
+    i686 asan
 
+diff --git a/configure b/configure
+index a3f66ba..a3591fd 100755
+--- a/configure
++++ b/configure
+@@ -6708,7 +6708,7 @@ if test "x$CFLAGS_FOR_TARGET" = x; then
+     esac
+     case " $CFLAGS " in
+       *" -g "* | *" -g3 "*) ;;
+-      *) CFLAGS_FOR_TARGET="-g $CFLAGS_FOR_TARGET" ;;
++      *) CFLAGS_FOR_TARGET="-O0 -g $CFLAGS_FOR_TARGET" ;;
+     esac
+   fi
+ fi
+@@ -6725,7 +6725,7 @@ if test "x$CXXFLAGS_FOR_TARGET" = x; then
+     esac
+     case " $CXXFLAGS " in
+       *" -g "* | *" -g3 "*) ;;
+-      *) CXXFLAGS_FOR_TARGET="-g $CXXFLAGS_FOR_TARGET" ;;
++      *) CXXFLAGS_FOR_TARGET="-O0 -g $CXXFLAGS_FOR_TARGET" ;;
+     esac
+   fi
+ fi
 diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
-index 439a4de..70be721 100644
+index bfa58c3..81bf540 100644
 --- a/gcc/config/arm/arm.c
 +++ b/gcc/config/arm/arm.c
-@@ -31121,7 +31121,7 @@ arm_validize_comparison (rtx *comparison, rtx * op1, rtx * op2)
+@@ -29501,7 +29501,7 @@ aarch_macro_fusion_pair_p (rtx_insn* prev, rtx_insn* curr)
  static unsigned HOST_WIDE_INT
  arm_asan_shadow_offset (void)
  {
@@ -18,10 +40,10 @@ index 439a4de..70be721 100644
  
  
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index 668c1d1..ad5c16e 100644
+index 3b19caa..55c6091 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
-@@ -5880,9 +5880,10 @@ ix86_legitimate_combined_insn (rtx insn)
+@@ -6136,9 +6136,10 @@ ix86_legitimate_combined_insn (rtx_insn *insn)
  static unsigned HOST_WIDE_INT
  ix86_asan_shadow_offset (void)
  {
@@ -35,11 +57,26 @@ index 668c1d1..ad5c16e 100644
  }
  
  /* Argument support functions.  */
+diff --git a/gcc/config/linux-android.h b/gcc/config/linux-android.h
+index 7b3a1e5..67ef1d3 100644
+--- a/gcc/config/linux-android.h
++++ b/gcc/config/linux-android.h
+@@ -44,9 +44,7 @@
+   "%{!mglibc:%{!muclibc:%{!mbionic: -mbionic}}} "			\
+   "%{!fno-pic:%{!fno-PIC:%{!fpic:%{!fPIC: -fPIC}}}}"
+ 
+-#define ANDROID_CC1PLUS_SPEC						\
+-  "%{!fexceptions:%{!fno-exceptions: -fno-exceptions}} "		\
+-  "%{!frtti:%{!fno-rtti: -fno-rtti}}"
++#define ANDROID_CC1PLUS_SPEC
+ 
+ #define ANDROID_LIB_SPEC \
+   "%{!static: -ldl}"
 diff --git a/gcc/passes.def b/gcc/passes.def
-index c98b048..aff3ad6 100644
+index f77d3d3..715024b 100644
 --- a/gcc/passes.def
 +++ b/gcc/passes.def
-@@ -188,7 +188,7 @@ along with GCC; see the file COPYING3.  If not see
+@@ -211,7 +211,7 @@ along with GCC; see the file COPYING3.  If not see
        /* After CCP we rewrite no longer addressed locals into SSA
  	 form if possible.  */
        NEXT_PASS (pass_copy_prop);
@@ -48,24 +85,81 @@ index c98b048..aff3ad6 100644
        NEXT_PASS (pass_optimize_bswap);
        NEXT_PASS (pass_split_crit_edges);
        NEXT_PASS (pass_pre);
-diff --git a/libsanitizer/asan/asan_intercepted_functions.h b/libsanitizer/asan/asan_intercepted_functions.h
-index 19b5336..f676967 100644
---- a/libsanitizer/asan/asan_intercepted_functions.h
-+++ b/libsanitizer/asan/asan_intercepted_functions.h
-@@ -50,7 +50,7 @@
- # define ASAN_INTERCEPT_SWAPCONTEXT 0
- #endif
+diff --git a/libbacktrace/elf.c b/libbacktrace/elf.c
+index 3f14b11..92c509c 100644
+--- a/libbacktrace/elf.c
++++ b/libbacktrace/elf.c
+@@ -925,12 +925,12 @@ backtrace_initialize (struct backtrace_state *state, int descriptor,
+   int ret;
+   int found_sym;
+   int found_dwarf;
+-  fileline elf_fileline_fn;
++  fileline elf_fileline_fn = NULL;
+   struct phdr_data pd;
  
--#if !SANITIZER_ANDROID && !SANITIZER_WINDOWS
-+#if !SANITIZER_WINDOWS
- # define ASAN_INTERCEPT_SIGNAL_AND_SIGACTION 1
- #else
- # define ASAN_INTERCEPT_SIGNAL_AND_SIGACTION 0
+   ret = elf_add (state, descriptor, 0, error_callback, data, &elf_fileline_fn,
+ 		 &found_sym, &found_dwarf, 1);
+-  if (!ret)
++  if (!ret || ret < 0)
+     return 0;
+ 
+   pd.state = state;
+diff --git a/libbacktrace/fileline.c b/libbacktrace/fileline.c
+index 0acad06..fe72c4e 100644
+--- a/libbacktrace/fileline.c
++++ b/libbacktrace/fileline.c
+@@ -53,7 +53,7 @@ fileline_initialize (struct backtrace_state *state,
+ 		     backtrace_error_callback error_callback, void *data)
+ {
+   int failed;
+-  fileline fileline_fn;
++  fileline fileline_fn = NULL;
+   int pass;
+   int called_error_callback;
+   int descriptor;
+@@ -170,7 +170,7 @@ backtrace_pcinfo (struct backtrace_state *state, uintptr_t pc,
+   if (!fileline_initialize (state, error_callback, data))
+     return 0;
+ 
+-  if (state->fileline_initialization_failed)
++  if (state->fileline_initialization_failed || !state->fileline_fn)
+     return 0;
+ 
+   return state->fileline_fn (state, pc, callback, error_callback, data);
+diff --git a/libgcc/unwind-arm-common.inc b/libgcc/unwind-arm-common.inc
+index 21f83a5..7821d70 100644
+--- a/libgcc/unwind-arm-common.inc
++++ b/libgcc/unwind-arm-common.inc
+@@ -255,7 +255,7 @@ get_eit_entry (_Unwind_Control_Block *ucbp, _uw return_address)
+     }
+ 
+   /* Discover the personality routine address.  */
+-  if (*ucbp->pr_cache.ehtp & (1u << 31))
++  if (1)
+     {
+       /* One of the predefined standard routines.  */
+       _uw idx = (*(_uw *) ucbp->pr_cache.ehtp >> 24) & 0xf;
+diff --git a/libsanitizer/asan/Makefile.am b/libsanitizer/asan/Makefile.am
+index 54c74ce..566f545 100644
+--- a/libsanitizer/asan/Makefile.am
++++ b/libsanitizer/asan/Makefile.am
+@@ -47,9 +47,9 @@ endif
+ if LIBBACKTRACE_SUPPORTED
+ libasan_la_LIBADD += $(top_builddir)/libbacktrace/libsanitizer_libbacktrace.la
+ endif
+-libasan_la_LIBADD += $(LIBSTDCXX_RAW_CXX_LDFLAGS)
++libasan_la_LIBADD += $(LIBSTDCXX_RAW_CXX_LDFLAGS) -llog
+ 
+-libasan_la_LDFLAGS = -version-info `grep -v '^\#' $(srcdir)/libtool-version` $(link_libasan)
++libasan_la_LDFLAGS = -version-info `grep -v '^\#' $(srcdir)/libtool-version` $(link_libasan) 
+ 
+ libasan_preinit.o: asan_preinit.o
+ 	cp $< $@
 diff --git a/libsanitizer/configure b/libsanitizer/configure
-index 5e4840f..e8bf1ed 100755
+index 1efbd53..5404bb1 100755
 --- a/libsanitizer/configure
 +++ b/libsanitizer/configure
-@@ -8562,7 +8562,7 @@ if test "${enable_shared+set}" = set; then :
+@@ -8565,7 +8565,7 @@ if test "${enable_shared+set}" = set; then :
      yes) enable_shared=yes ;;
      no) enable_shared=no ;;
      *)
@@ -74,7 +168,7 @@ index 5e4840f..e8bf1ed 100755
        # Look at the argument we got.  We use all the common list separators.
        lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
        for pkg in $enableval; do
-@@ -15506,7 +15506,7 @@ done
+@@ -15509,7 +15509,7 @@ done
  
  
  # Common libraries that we need to link against for all sanitizer libs.
@@ -84,18 +178,18 @@ index 5e4840f..e8bf1ed 100755
  # Set up the set of additional libraries that we need to link against for libasan.
  link_libasan=$link_sanitizer_common
 diff --git a/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc b/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
-index 75f7d1d..d298d13 100644
+index 104c27c..5ea7d03 100644
 --- a/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
 +++ b/libsanitizer/sanitizer_common/sanitizer_common_syscalls.inc
-@@ -2287,6 +2287,7 @@ PRE_SYSCALL(ni_syscall)() {}
+@@ -2296,6 +2296,7 @@ PRE_SYSCALL(ni_syscall)() {}
  
  POST_SYSCALL(ni_syscall)(long res) {}
  
 +#if !SANITIZER_ANDROID
  PRE_SYSCALL(ptrace)(long request, long pid, long addr, long data) {
- #if defined(__i386) || defined (__x86_64)
+ #if !SANITIZER_ANDROID && (defined(__i386) || defined (__x86_64))
    if (data) {
-@@ -2330,6 +2331,7 @@ POST_SYSCALL(ptrace)(long res, long request, long pid, long addr, long data) {
+@@ -2339,6 +2340,7 @@ POST_SYSCALL(ptrace)(long res, long request, long pid, long addr, long data) {
    }
  #endif
  }
@@ -104,10 +198,10 @@ index 75f7d1d..d298d13 100644
  PRE_SYSCALL(add_key)(const void *_type, const void *_description,
                       const void *_payload, long plen, long destringid) {
 diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
-index ac56f33..0196673 100644
+index a1f0432..fa3caf1 100644
 --- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
 +++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
-@@ -73,12 +73,6 @@ COMPILER_CHECK(struct_kernel_stat_sz == sizeof(struct stat));
+@@ -71,12 +71,6 @@ COMPILER_CHECK(struct_kernel_stat_sz == sizeof(struct stat));
  COMPILER_CHECK(struct_kernel_stat64_sz == sizeof(struct stat64));
  #endif
  
@@ -120,7 +214,7 @@ index ac56f33..0196673 100644
  #if !SANITIZER_ANDROID
  COMPILER_CHECK(sizeof(struct __sanitizer_perf_event_attr) <=
                 sizeof(struct perf_event_attr));
-@@ -93,14 +87,5 @@ COMPILER_CHECK(iocb_cmd_preadv == IOCB_CMD_PREADV);
+@@ -91,14 +85,5 @@ COMPILER_CHECK(iocb_cmd_preadv == IOCB_CMD_PREADV);
  COMPILER_CHECK(iocb_cmd_pwritev == IOCB_CMD_PWRITEV);
  #endif
  
@@ -135,26 +229,6 @@ index ac56f33..0196673 100644
 -CHECK_SIZE_AND_OFFSET(iocb, aio_offset);
  
  #endif  // SANITIZER_LINUX
-diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
-index 196eb3b..c469396 100644
---- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
-+++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
-@@ -163,7 +163,6 @@ namespace __sanitizer {
-   unsigned struct_old_utsname_sz = sizeof(struct old_utsname);
-   unsigned struct_oldold_utsname_sz = sizeof(struct oldold_utsname);
-   unsigned struct_itimerspec_sz = sizeof(struct itimerspec);
--  unsigned struct_ustat_sz = sizeof(struct ustat);
- #endif // SANITIZER_LINUX
- 
- #if SANITIZER_LINUX && !SANITIZER_ANDROID
-@@ -173,6 +172,7 @@ namespace __sanitizer {
-   unsigned struct_mq_attr_sz = sizeof(struct mq_attr);
-   unsigned struct_statvfs_sz = sizeof(struct statvfs);
-   unsigned struct_statvfs64_sz = sizeof(struct statvfs64);
-+  unsigned struct_ustat_sz = sizeof(struct ustat);
- #endif // SANITIZER_LINUX && !SANITIZER_ANDROID
- 
-   uptr sig_ign = (uptr)SIG_IGN;
 diff --git a/ltmain.sh b/ltmain.sh
 index 9503ec8..6db31ed 100644
 --- a/ltmain.sh
