@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PIDS=($(adb jdwp))
+PIDS=($(timeout 5 adb jdwp))
 
 gawk -f <(cat - <<-'_EOF_'
    BEGIN  {
