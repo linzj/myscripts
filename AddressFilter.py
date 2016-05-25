@@ -324,7 +324,7 @@ def printContent(content,numberDict,f):
             start = match.start()
             addrData = numberDict[address]
             f.write(content[offset:start])
-            f.write("{4:08x} {2}".format(addrData.soPath,addrData.soName,addrData.funcName,addrData.lineInfo,addrData.relativeAddress))
+            f.write("{4:08x} {2} at {1}".format(addrData.soPath,addrData.soName,addrData.funcName,addrData.lineInfo,addrData.relativeAddress))
             offset = end
     f.write(content[offset:])
 
