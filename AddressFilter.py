@@ -250,6 +250,7 @@ def handleJob(job,full_path):
         if shouldSkip:
             jobNumber = jobNumberIter.next()
             return
+
         jobNumber = jobNumberIter.next()
         ret.append((jobNumber + job.offset,(sema.funcName_,sema.line_)))
     sema = MySema(callBack)
@@ -266,7 +267,6 @@ def handleJob(job,full_path):
         except Exception as e:
             traceback.print_exc(file=sys.stderr)
             raise e
-
 
     callBack(False)
     return ret
@@ -331,7 +331,7 @@ def printContent(content,numberDict,f):
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         #printError('<maps file> <search path>')
-        print >>stderr, '<maps file> <search path>'
+        print >>sys.stderr, '<maps file> <search path>'
         sys.exit(1)
     content = sys.stdin.read()
 

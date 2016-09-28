@@ -21,9 +21,8 @@ gawk -f <(cat - <<-'_EOF_'
 _EOF_
 )  ${PIDS[*]}
 echo Select your app to jdb
-read MENU
+read FINAL_PID
 
-FINAL_PID=${PIDS[$MENU]}
 JDB_PORT=8703
 
 #org.chromium.android_webview.AwContents.AwContents
