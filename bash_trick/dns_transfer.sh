@@ -7,6 +7,7 @@ function ctrl_c() {
 function do_exit() {
     echo 'exiting'
     iptables -t nat -D OUTPUT 1
+    service dns-clean restart
     exit 0
 }
 
