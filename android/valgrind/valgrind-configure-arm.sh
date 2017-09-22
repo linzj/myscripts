@@ -1,5 +1,5 @@
-NDK_PATH=/home/linzj/android-ndk-r8e
-NDK_TOOLCHAINS=$NDK_PATH/toolchains/arm-linux-androideabi-4.7/prebuilt/linux-x86_64/bin
+NDK_PATH=/home/linzj/android-ndk-r10e
+NDK_TOOLCHAINS=$NDK_PATH/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin
 export PATH=$NDK_TOOLCHAINS:$PATH
 
 CC=arm-linux-androideabi-gcc \
@@ -12,7 +12,7 @@ CFLAGS="-O2 --sysroot=$NDK_PATH/platforms/android-14/arch-arm -I$NDK_PATH/platfo
 CPPFLAGS="--sysroot=$NDK_PATH/platforms/android-14/arch-arm -I$NDK_PATH/platforms/android-14/arch-arm/usr/include" \
 LDFLAGS="--sysroot=$NDK_PATH/platforms/android-14/arch-arm" \
 ./configure --host=armv7-linux-androideabi --target=armv7-android-linux \
-   --with-tmpdir=/sdcard --prefix=/data/local/tmp/tools/
+   --with-tmpdir=/data/local/tmp --prefix=/data/local
 if [ $? == 0 ]
 then
     make -j9
