@@ -1,13 +1,15 @@
 #!/bin/sh
 
-if [ -d gcc-trunk ] ; then
+if ! [ -d gcc-trunk ] ; then
     echo "no gcc-trunk in current directory." 1>&2
+    exit 1
 fi
 
-if [ -d binutils-gdb ] ; then
+if ! [ -d binutils-gdb ] ; then
     echo "no binutils in current directory." 1>&2
+    exit 1
 fi
 
 mkdir building
 cd building
-../gcc-trunk/symlink-tree ../binutils-gdb/ && ../gcc-trunk/symlink-tree ../gcc-trunk/
+../binutils-gdb/symlink-tree ../binutils-gdb/ && ../binutils-gdb/symlink-tree ../gcc-trunk/
