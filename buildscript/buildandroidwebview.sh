@@ -19,5 +19,5 @@ EOF
 
 gn args out/Android
 gn gen out/Android && \
-ninja -C out/Android android_webview_apk && \
-adb install -r out/Android/apks/AndroidWebView.apk
+ninja -C out/Android webview_instrumentation_apk && \
+adb install -r out/Android/apks/WebViewInstrumentation.apk
