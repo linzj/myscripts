@@ -1,14 +1,14 @@
-commit a0df8cfa0cd99193cee84fe4632563b29282b145
+commit 26fe1963b4ec00c04bd0fb0801077aaf3631bcf7
 Author: lin zuojian <manjian2006@gmail.com>
 Date:   Tue Dec 5 15:10:59 2017 +0800
 
-    asan 7.2
+    asan 8.1
 
 diff --git a/configure b/configure
-index 32a38633ad8..12d090ee04c 100755
+index 0601395512f..4b708b08e62 100755
 --- a/configure
 +++ b/configure
-@@ -6711,7 +6711,7 @@ if test "x$CFLAGS_FOR_TARGET" = x; then
+@@ -6743,7 +6743,7 @@ if test "x$CFLAGS_FOR_TARGET" = x; then
      esac
      case " $CFLAGS " in
        *" -g "* | *" -g3 "*) ;;
@@ -17,7 +17,7 @@ index 32a38633ad8..12d090ee04c 100755
      esac
    fi
  fi
-@@ -6728,7 +6728,7 @@ if test "x$CXXFLAGS_FOR_TARGET" = x; then
+@@ -6760,7 +6760,7 @@ if test "x$CXXFLAGS_FOR_TARGET" = x; then
      esac
      case " $CXXFLAGS " in
        *" -g "* | *" -g3 "*) ;;
@@ -27,19 +27,19 @@ index 32a38633ad8..12d090ee04c 100755
    fi
  fi
 diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
-index 1ded0d2a17d..2323df7f366 100644
+index 08120c6272b..125aa9afec5 100644
 --- a/gcc/config/arm/arm.c
 +++ b/gcc/config/arm/arm.c
-@@ -323,7 +323,7 @@ static const struct attribute_spec arm_attribute_table[] =
-   { "short_call",   0, 0, false, true,  true,  NULL, false },
+@@ -339,7 +339,7 @@ static const struct attribute_spec arm_attribute_table[] =
+      addressing range.  */
+   { "short_call",   0, 0, false, true,  true,  false, NULL, NULL },
    /* Specify the procedure call conventions for a function.  */
-   { "pcs",          1, 1, false, true,  true,  arm_handle_pcs_attribute,
--    false },
-+    true},
+-  { "pcs",          1, 1, false, true,  true,  false, arm_handle_pcs_attribute,
++  { "pcs",          1, 1, false, true,  true,  true, arm_handle_pcs_attribute,
+     NULL },
    /* Interrupt Service Routines have special prologue and epilogue requirements.  */
-   { "isr",          0, 1, false, false, false, arm_handle_isr_attribute,
-     false },
-@@ -30178,7 +30178,7 @@ arm_sched_can_speculate_insn (rtx_insn *insn)
+   { "isr",          0, 1, false, false, false, false, arm_handle_isr_attribute,
+@@ -30506,7 +30506,7 @@ arm_sched_can_speculate_insn (rtx_insn *insn)
  static unsigned HOST_WIDE_INT
  arm_asan_shadow_offset (void)
  {
@@ -48,11 +48,30 @@ index 1ded0d2a17d..2323df7f366 100644
  }
  
  
+diff --git a/gcc/config/arm/t-linux-androideabi b/gcc/config/arm/t-linux-androideabi
+index 8f1307c557f..f92d4bcfa72 100644
+--- a/gcc/config/arm/t-linux-androideabi
++++ b/gcc/config/arm/t-linux-androideabi
+@@ -1,6 +1,12 @@
+-MULTILIB_OPTIONS     = march=armv7-a mthumb
++MULTILIB_OPTIONS     = marm/mthumb
+ MULTILIB_DIRNAMES    = armv7-a thumb
+-MULTILIB_EXCEPTIONS  =
++MULTILIB_OPTIONS     += march=armv7-a
++MULTILIB_DIRNAMES    += v7-a
++MULTILIB_OPTIONS     += mfpu=neon
++MULTILIB_DIRNAMES    += neon
++MULTILIB_OPTIONS     += mfloat-abi=softfp
++MULTILIB_DIRNAMES    += softfp
++MULTILIB_REQUIRED    = mthumb/march=armv7-a/mfpu=neon/mfloat-abi=softfp
+ MULTILIB_MATCHES     =
+ MULTILIB_OSDIRNAMES  =
+ 
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index dc14d205de7..686ba507772 100644
+index 6a2141e48db..1127c8a8108 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
-@@ -8236,9 +8236,10 @@ ix86_legitimate_combined_insn (rtx_insn *insn)
+@@ -7012,9 +7012,10 @@ ix86_legitimate_combined_insn (rtx_insn *insn)
  static unsigned HOST_WIDE_INT
  ix86_asan_shadow_offset (void)
  {
@@ -67,7 +86,7 @@ index dc14d205de7..686ba507772 100644
  
  /* Argument support functions.  */
 diff --git a/gcc/config/linux-android.h b/gcc/config/linux-android.h
-index 19c55c3a5c7..c6602a6e3e2 100644
+index 9f3985d23b8..2694cd4a5ad 100644
 --- a/gcc/config/linux-android.h
 +++ b/gcc/config/linux-android.h
 @@ -44,9 +44,7 @@
@@ -82,23 +101,23 @@ index 19c55c3a5c7..c6602a6e3e2 100644
  #define ANDROID_LIB_SPEC \
    "%{!static: -ldl}"
 diff --git a/libbacktrace/elf.c b/libbacktrace/elf.c
-index 89ed42b8021..62231935fd0 100644
+index 0fd5e6f9d0d..4442d5c849a 100644
 --- a/libbacktrace/elf.c
 +++ b/libbacktrace/elf.c
-@@ -932,7 +932,7 @@ backtrace_initialize (struct backtrace_state *state, int descriptor,
+@@ -3298,7 +3298,7 @@ backtrace_initialize (struct backtrace_state *state, const char *filename,
  
-   ret = elf_add (state, descriptor, 0, error_callback, data, &elf_fileline_fn,
- 		 &found_sym, &found_dwarf, 1);
+   ret = elf_add (state, filename, descriptor, 0, error_callback, data,
+ 		 &elf_fileline_fn, &found_sym, &found_dwarf, 1, 0);
 -  if (!ret)
 +  if (!ret || ret < 0)
      return 0;
  
    pd.state = state;
 diff --git a/libbacktrace/fileline.c b/libbacktrace/fileline.c
-index 0fd350a30c9..be0ff45414e 100644
+index e5673068379..6ab2338fa44 100644
 --- a/libbacktrace/fileline.c
 +++ b/libbacktrace/fileline.c
-@@ -53,7 +53,7 @@ fileline_initialize (struct backtrace_state *state,
+@@ -54,7 +54,7 @@ fileline_initialize (struct backtrace_state *state,
  		     backtrace_error_callback error_callback, void *data)
  {
    int failed;
@@ -107,7 +126,7 @@ index 0fd350a30c9..be0ff45414e 100644
    int pass;
    int called_error_callback;
    int descriptor;
-@@ -170,7 +170,7 @@ backtrace_pcinfo (struct backtrace_state *state, uintptr_t pc,
+@@ -177,7 +177,7 @@ backtrace_pcinfo (struct backtrace_state *state, uintptr_t pc,
    if (!fileline_initialize (state, error_callback, data))
      return 0;
  
@@ -117,10 +136,10 @@ index 0fd350a30c9..be0ff45414e 100644
  
    return state->fileline_fn (state, pc, callback, error_callback, data);
 diff --git a/libsanitizer/asan/Makefile.am b/libsanitizer/asan/Makefile.am
-index 43377a95622..835c8ce77fd 100644
+index f105b035796..8c014d043da 100644
 --- a/libsanitizer/asan/Makefile.am
 +++ b/libsanitizer/asan/Makefile.am
-@@ -52,7 +52,7 @@ endif
+@@ -55,7 +55,7 @@ endif
  if LIBBACKTRACE_SUPPORTED
  libasan_la_LIBADD += $(top_builddir)/libbacktrace/libsanitizer_libbacktrace.la
  endif
@@ -130,10 +149,10 @@ index 43377a95622..835c8ce77fd 100644
  libasan_la_LDFLAGS = -version-info `grep -v '^\#' $(srcdir)/libtool-version` $(link_libasan)
  
 diff --git a/libsanitizer/configure b/libsanitizer/configure
-index 8e0c47ea838..08ce6828bb8 100755
+index 4695bc7d4f7..f60346b597e 100755
 --- a/libsanitizer/configure
 +++ b/libsanitizer/configure
-@@ -8575,7 +8575,7 @@ if test "${enable_shared+set}" = set; then :
+@@ -8580,7 +8580,7 @@ if test "${enable_shared+set}" = set; then :
      yes) enable_shared=yes ;;
      no) enable_shared=no ;;
      *)
@@ -142,7 +161,7 @@ index 8e0c47ea838..08ce6828bb8 100755
        # Look at the argument we got.  We use all the common list separators.
        lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
        for pkg in $enableval; do
-@@ -15519,7 +15519,7 @@ done
+@@ -15524,7 +15524,7 @@ done
  
  
  # Common libraries that we need to link against for all sanitizer libs.
@@ -204,7 +223,7 @@ index 23a014823c4..c03b1d209d3 100644
  
  #endif  // SANITIZER_LINUX
 diff --git a/libstdc++-v3/config/os/bionic/ctype_base.h b/libstdc++-v3/config/os/bionic/ctype_base.h
-index 3881612b3ed..182a0f766e3 100644
+index 2eb5dcaff79..070efce873d 100644
 --- a/libstdc++-v3/config/os/bionic/ctype_base.h
 +++ b/libstdc++-v3/config/os/bionic/ctype_base.h
 @@ -27,6 +27,16 @@
@@ -224,8 +243,21 @@ index 3881612b3ed..182a0f766e3 100644
  
  namespace std _GLIBCXX_VISIBILITY(default)
  {
+diff --git a/libstdc++-v3/include/bits/hashtable_policy.h b/libstdc++-v3/include/bits/hashtable_policy.h
+index 3ff6b14a90f..bc8a47fc3e3 100644
+--- a/libstdc++-v3/include/bits/hashtable_policy.h
++++ b/libstdc++-v3/include/bits/hashtable_policy.h
+@@ -511,6 +511,8 @@ namespace __detail
+   {
+ #if __SIZEOF_SIZE_T__ >= 8
+     std::uint_fast64_t __x = __n;
++#elif defined(__ANDROID__)
++    uint_fast32_t __x = __n;
+ #else
+     std::uint_fast32_t __x = __n;
+ #endif
 diff --git a/libstdc++-v3/libsupc++/guard.cc b/libstdc++-v3/libsupc++/guard.cc
-index 19953bc52f0..d405efc93ca 100644
+index 3a2ec3ad0d6..0d2c726563b 100644
 --- a/libstdc++-v3/libsupc++/guard.cc
 +++ b/libstdc++-v3/libsupc++/guard.cc
 @@ -34,7 +34,11 @@
@@ -241,7 +273,7 @@ index 19953bc52f0..d405efc93ca 100644
  # define _GLIBCXX_USE_FUTEX
  # define _GLIBCXX_FUTEX_WAIT 0
 diff --git a/libstdc++-v3/src/c++11/futex.cc b/libstdc++-v3/src/c++11/futex.cc
-index 64aada06969..1445dcac088 100644
+index f5000aa77b3..d8cf12edebc 100644
 --- a/libstdc++-v3/src/c++11/futex.cc
 +++ b/libstdc++-v3/src/c++11/futex.cc
 @@ -27,7 +27,11 @@
@@ -257,19 +289,6 @@ index 64aada06969..1445dcac088 100644
  #include <unistd.h>
  #include <sys/time.h>
  #include <errno.h>
-diff --git a/libstdc++-v3/src/filesystem/dir.cc b/libstdc++-v3/src/filesystem/dir.cc
-index c8457bde102..4c3459f076e 100644
---- a/libstdc++-v3/src/filesystem/dir.cc
-+++ b/libstdc++-v3/src/filesystem/dir.cc
-@@ -144,7 +144,7 @@ fs::_Dir::advance(error_code* ec, directory_options options)
-   if (ec)
-     ec->clear();
- 
--  int err = std::exchange(errno, 0);
-+  volatile int err = std::exchange(errno, 0);
-   const auto entp = readdir(dirp);
-   std::swap(errno, err);
- 
 diff --git a/ltmain.sh b/ltmain.sh
 index 9503ec85d70..6db31ed0a37 100644
 --- a/ltmain.sh
