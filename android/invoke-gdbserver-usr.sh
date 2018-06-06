@@ -5,6 +5,13 @@ PACKAGE_NAME=$1
 fi
 
 MYASS=`adb shell ps | tr "\r\n" "\n" | grep -Pwm1 "$PACKAGE_NAME"'$' | awk '{print $2}'`
+if [ -z $MYASS ]; then
+  MYASS=`adb shell ps -A | tr "\r\n" "\n" | grep -Pwm1 "$PACKAGE_NAME"'$' | awk '{print $2}'`
+fi
+
+if [ -z $MYASS ]; then
+  MYASS=$2
+fi
 echo $MYASS
 DEBUG_SOCKET=debug-socket
 DEBUG_PORT=5039
