@@ -1,12 +1,14 @@
-PACKAGE_NAME=com.UCMobile
+PROCESS_NAME=com.UCMobile
 if [ $# -gt 0 ]
 then
-PACKAGE_NAME=$1
+PROCESS_NAME=$1
 fi
+IFS=':' read -r -a array <<< $PROCESS_NAME
+PACKAGE_NAME=${array[0]}
 
-MYASS=`adb shell ps | tr "\r\n" "\n" | grep -Pwm1 "$PACKAGE_NAME"'$' | awk '{print $2}'`
+MYASS=`adb shell ps | tr "\r\n" "\n" | grep -Pwm1 "$PROCESS_NAME"'$' | awk '{print $2}'`
 if [ -z $MYASS ]; then
-  MYASS=`adb shell ps -A | tr "\r\n" "\n" | grep -Pwm1 "$PACKAGE_NAME"'$' | awk '{print $2}'`
+  MYASS=`adb shell ps -A | tr "\r\n" "\n" | grep -Pwm1 "$PROCESS_NAME"'$' | awk '{print $2}'`
 fi
 
 if [ -z $MYASS ]; then
