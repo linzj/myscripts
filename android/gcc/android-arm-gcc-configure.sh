@@ -7,6 +7,9 @@ if [ -z $NDK_ROOT ]; then
   echo failed to detect ndk root
   exit 1
 fi
+if [ -z $SYSROOT ]; then
+  SYSROOT=$NDK_ROOT/platforms/android-21/arch-arm
+fi
 TARGET_ARCH=armeabi
 export ANDROID_NDK_ROOT=$NDK_ROOT
 
@@ -36,4 +39,4 @@ export OBJDUMP_FOR_TARGET=$ANDROID_TOOLCHAIN/arm-linux-androideabi/bin/objdump
 export RANLIB_FOR_TARGET=$ANDROID_TOOLCHAIN/arm-linux-androideabi/bin/ranlib
 export READELF_FOR_TARGET=$ANDROID_TOOLCHAIN/arm-linux-androideabi/bin/readelf
 
-$1 --prefix=`pwd`/built --target=arm-linux-androideabi --with-gnu-as  --enable-languages=c,c++ --disable-libssp --disable-nls --disable-libitm --disable-libmudflap --enable-plugins --enable-libgomp --enable-graphite=yes --enable-libstdc__-v3 --disable-sjlj-exceptions --disable-tls --enable-gold --with-float=soft --with-fpu=vfp --with-arch=armv5te --enable-target-optspace --enable-initfini-array --disable-nls --with-sysroot=/home/linzj/android-ndk-r10e/platforms/android-21/arch-arm --with-arch=armv5te --program-transform-name='s,^,arm-linux-androideabi-,' --enable-shared=libsanitizer --with-mpc=/home/linzj/src/build-gcc/static_libs --with-mpfr=/home/linzj/src/build-gcc/static_libs --with-gmp=/home/linzj/src/build-gcc/static_libs --with-isl=/home/linzj/src/build-gcc/static_libs
+$1 --target=arm-linux-androideabi --with-gnu-as  --enable-languages=c,c++ --disable-libssp --disable-nls --disable-libitm --disable-libmudflap --enable-plugins --enable-libgomp --enable-graphite=yes --enable-libstdc__-v3 --disable-sjlj-exceptions --disable-tls --enable-gold --with-float=soft --with-fpu=vfp --with-arch=armv5te --enable-target-optspace --enable-initfini-array --disable-nls --with-sysroot=$SYSROOT --with-arch=armv5te --program-transform-name='s,^,arm-linux-androideabi-,' --enable-shared=libsanitizer --with-mpc=/home/linzj/src/build-gcc/static_libs --with-mpfr=/home/linzj/src/build-gcc/static_libs --with-gmp=/home/linzj/src/build-gcc/static_libs --with-isl=/home/linzj/src/build-gcc/static_libs
