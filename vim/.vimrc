@@ -1,6 +1,6 @@
-set tabstop=4
-set softtabstop=4
-set shiftwidth=4
+set tabstop=2
+set softtabstop=2
+set shiftwidth=2
 set smartindent
 "set cinoptions={0,1s,t0,n-2,p2s,(03s,=.5s,>1s,=1s,:1s
 set nu
@@ -36,8 +36,8 @@ map <C-F10>c :call UpdateCscope() <CR>
 function! s:insert_gates()
   let gatename = substitute(toupper(expand("%:t")), "\\.", "_", "g")
   execute "normal! i#ifndef " . gatename
-  execute "normal! o#define " . gatename . " "
-  execute "normal! Go#endif /* " . gatename . " */"
+  execute "normal! o#define " . gatename
+  execute "normal! Go#endif  // " . gatename
   normal! kk
 endfunction
 map <C-F10>a :call <SID>insert_gates() <CR>
