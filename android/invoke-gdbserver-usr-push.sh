@@ -19,8 +19,8 @@ DEBUG_SOCKET=debug-socket
 DEBUG_PORT=5039
 DATA_DIR=/data/data/$PACKAGE_NAME
 adb forward tcp:$DEBUG_PORT localfilesystem:$DATA_DIR/$DEBUG_SOCKET
-adb push ~/android-ndk-r10e/prebuilt/android-arm/gdbserver/gdbserver /sdcard/
-adb shell run-as $PACKAGE_NAME cp /sdcard/gdbserver /data/data/$PACKAGE_NAME/gdbserver
+adb push ~/android-ndk-r10e/prebuilt/android-arm/gdbserver/gdbserver /data/local/tmp/
+adb shell run-as $PACKAGE_NAME cp /data/local/tmp/gdbserver /data/data/$PACKAGE_NAME/gdbserver
 adb shell run-as $PACKAGE_NAME chmod 755 /data/data/$PACKAGE_NAME/gdbserver
 adb shell run-as $PACKAGE_NAME /data/data/$PACKAGE_NAME/gdbserver +$DEBUG_SOCKET  --attach $MYASS
 
