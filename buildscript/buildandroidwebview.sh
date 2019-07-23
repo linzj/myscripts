@@ -11,6 +11,7 @@ target_cpu = "arm"  # (default)
 is_debug = true  # (default)
 
 # Other args you may want to set:
+use_jumbo_build = true
 is_component_build = true
 is_clang = true
 symbol_level = 2  # Faster build with fewer symbols. -g1 rather than -g2
@@ -21,3 +22,6 @@ gn args out/Android
 gn gen out/Android && \
 ninja -C out/Android webview_instrumentation_apk && \
 adb install -r out/Android/apks/WebViewInstrumentation.apk
+
+ninja -C out/Android_Release content_shell_apk && \
+adb install -r out/Android_Release/apks/ContentShell.apk
