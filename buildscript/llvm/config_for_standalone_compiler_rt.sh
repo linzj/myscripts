@@ -20,7 +20,7 @@ if [ $TARGET = "arm" ]; then
     export TARGET_WORD_BITS=32
     export GCC_PATH=`dirname $(find $NDK_ROOT/toolchains $NDK_ROOT/build  -name 'arm*' -name '*-g++' | sort  -r| head -n 1)`/../
     export BINARY_PATH=$GCC_PATH/arm-linux-androideabi/bin
-    export DEFAULT_LIBRARY="-lc++_static -lc++abi -lunwind -landroid_support"
+    export DEFAULT_LIBRARY="-lc++_static -lc++abi -lunwind -landroid_support -lm -ldl -lgcc"
     export WTF_CPU=ARM
     echo "building arm $BINARY_PATH"
 elif [ $TARGET = "arm64" ]; then
@@ -40,7 +40,7 @@ elif [ $TARGET = "x86" ]; then
     export TARGET_WORD_BITS=32
     export GCC_PATH=`dirname $(find $NDK_ROOT/toolchains $NDK_ROOT/build  -name 'i686*' -name '*-g++' | sort  -r| head -n 1)`/../
     export BINARY_PATH=$GCC_PATH/i686-linux-android/bin
-    export DEFAULT_LIBRARY="-lc++_static -lc++abi -landroid_support"
+    export DEFAULT_LIBRARY="-lc++_static -lc++abi -landroid_support -lm"
     export WTF_CPU=X86
     echo 'building x86'
 else
@@ -51,4 +51,4 @@ fi
 #mkdir -p build${TARGET_WORD_BITS}
 #cd build${TARGET_WORD_BITS}
 
-cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .. && cmake --build .
+cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_TOOLCHAIN_FILE=android.cmake .. && cmake --build .
