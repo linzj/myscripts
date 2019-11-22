@@ -88,6 +88,10 @@
     RegisterDisplay(view) {
       this.register_display_ = view.querySelector('.info_view_display');
     }
+
+    Reload() {
+      this.BuildConnection();
+    }
   }
 
   class URLDataConnection extends DataConnection {
@@ -126,6 +130,7 @@
   class URLSubmitConnection extends DataConnection {
     url_;
     form_root_;
+    data_to_reload_;
 
     constructor(url) {
       super();
@@ -146,11 +151,18 @@
       });
     }
 
+    SetDataToReload(data_to_reload) {
+      this.data_to_reload_ = data_to_reload;
+    }
+
     #HandleFormData = async function(form_data) {
-      let fetch_promise = fetch(this.url_ + form_data.get('name'), {method: "put", body: this.#GetBody(form_data), mode: "cors" });
+      let fetch_promise = fetch(this.url_, {method: "put", body: this.#GetBody(form_data), mode: "cors" });
       let respond = await fetch_promise;
       if (respond.status == 204) {
         this.Update('form submmited okay');
+        if (this.data_to_reload_) {
+          this.data_to_reload_.Reload();
+        }
       } else {
         let text = await respond.text();
         this.Update('form submmited failed with: ' + text);
@@ -173,14 +185,15 @@
 
   let proxies_view = CreateInfoView("proxies");
   let proxies_data = new URLDataConnection("http://localhost:9090/proxies");
-  BindViewToData(proxies_view, proxies_data, recycle_update);
+  BindViewToData(proxies_view, proxies_data, update_one_line);
 
   let traffic_view = CreateInfoView("traffic");
   let traffic_data = new URLDataConnection("http://localhost:9090/traffic");
   BindViewToData(traffic_view, traffic_data, update_one_line);
 
   let proxy_select_view = CreateFormView("setproxyformtemplate", "Select Proxy");
-  let proxy_data = new URLSubmitConnection("http://localhost:9090/proxies/");
+  let proxy_data = new URLSubmitConnection("http://localhost:9090/proxies/Proxy");
+  proxy_data.SetDataToReload(proxies_data);
   BindViewToData(proxy_select_view, proxy_data, update_one_line);
 })()
 </script>
