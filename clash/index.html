@@ -1,0 +1,187 @@
+<head>
+<style>
+.info_view_display {
+  overflow:scroll; height:100px;
+}
+</style>
+</head>
+<body>
+<div id="log_display">
+</div>
+<template id="infotemplate">
+<div class="info_root">
+<div class="info_view">
+<div class="info_view_title">
+</div>
+<div class="info_view_display">
+</div>
+</div>
+<div>
+</template>
+
+<template id="setproxyformtemplate">
+<form>
+  name:<br>
+  <input type="text" name="name" value="">
+  <br>
+  <input type="button" class="submit" value="Submit">
+</form>
+</template>
+<script>
+(function () {
+  function log(msg) {
+    let new_div = document.createElement("div");
+    new_div.innerText = msg;
+    log_display.appendChild(new_div);
+  }
+
+  function CreateInfoView(title) {
+    let template = infotemplate;
+    let view = template.content.cloneNode(true);
+    let root = view.querySelector(".info_root");
+    let title_element = view.querySelector(".info_view_title");
+    title_element.innerText = title;
+    document.body.appendChild(view);
+    return root;
+  }
+
+  function CreateFormView(template_name, title) {
+    let root = CreateInfoView(title);
+    let form = window[template_name].content.cloneNode(true);
+    root.prepend(form);
+    return root;
+  }
+
+  function BindViewToData(view, data, policy) {
+    data.RegisterDisplay(view);
+    data.BuildConnection();
+    data.SetUpdatePolicy(policy)
+  }
+
+  let recycle_update = (display, msg) => {
+    while (display.childNodes.length > 20) {
+      display.removeChild(display.firstChild);
+    }
+    var new_entry = document.createElement('div');
+    new_entry.innerText = msg
+    display.appendChild(new_entry);
+  }
+
+  let update_one_line = (display, msg) => {
+    display.innerText = msg;
+  }
+
+  class DataConnection {
+    register_display_;
+    policy_;
+
+    SetUpdatePolicy(policy) {
+      this.policy_ = policy;
+    }
+
+    Update(msg) {
+      if (this.register_display_ && this.policy_) {
+        this.policy_(this.register_display_, msg);
+      }
+    }
+
+    RegisterDisplay(view) {
+      this.register_display_ = view.querySelector('.info_view_display');
+    }
+  }
+
+  class URLDataConnection extends DataConnection {
+    url_;
+
+    constructor(url) {
+      super();
+      this.url_ = url;
+    }
+
+    BuildConnection() {
+      let fetch_promise = fetch(this.url_, {method: "get", mode: "cors", "cache": "no-cache"});
+      this.#HandleFetchPromise(fetch_promise)
+    }
+
+    #HandleFetchPromise = async function (fetch_promise) {
+      let response = await fetch_promise;
+      if (!response.ok) {
+        log("Fetch for " + this.url_ + " failed. Status code: " + response.status);
+        return;
+      }
+      let reader = response.body.getReader();
+      var dec = new TextDecoder("utf-8");
+      while (true) {
+        let result = await reader.read();
+        if (result.done) {
+          log("Fetch done for " + this.url_);
+          break;
+        }
+        let msg = dec.decode(result.value);
+        this.Update(msg);
+      }
+    }
+  }
+
+  class URLSubmitConnection extends DataConnection {
+    url_;
+    form_root_;
+
+    constructor(url) {
+      super();
+      this.url_ = url;
+    }
+
+    RegisterDisplay(view) {
+      super.RegisterDisplay(view);
+      this.form_root_ = view;
+    }
+
+    BuildConnection() {
+      let button = this.form_root_.querySelector('input.submit');
+      button.addEventListener('click', (e) => {
+        let form = this.form_root_.querySelector('form');
+        let form_data = new FormData(form);
+        this.#HandleFormData(form_data);
+      });
+    }
+
+    #HandleFormData = async function(form_data) {
+      let fetch_promise = fetch(this.url_ + form_data.get('name'), {method: "put", body: this.#GetBody(form_data), mode: "cors" });
+      let respond = await fetch_promise;
+      if (respond.status == 204) {
+        this.Update('form submmited okay');
+      } else {
+        let text = await respond.text();
+        this.Update('form submmited failed with: ' + text);
+      }
+    }
+
+    #GetBody = function (form_data) {
+      let o = {};
+      form_data.forEach(function(value, key){
+          o [key] = value;
+      });
+      var json = JSON.stringify(o);
+      return json;
+    }
+  }
+
+  let log_view = CreateInfoView("logs");
+  let log_data = new URLDataConnection("http://localhost:9090/logs");
+  BindViewToData(log_view, log_data, recycle_update);
+
+  let proxies_view = CreateInfoView("proxies");
+  let proxies_data = new URLDataConnection("http://localhost:9090/proxies");
+  BindViewToData(proxies_view, proxies_data, recycle_update);
+
+  let traffic_view = CreateInfoView("traffic");
+  let traffic_data = new URLDataConnection("http://localhost:9090/traffic");
+  BindViewToData(traffic_view, traffic_data, update_one_line);
+
+  let proxy_select_view = CreateFormView("setproxyformtemplate", "Select Proxy");
+  let proxy_data = new URLSubmitConnection("http://localhost:9090/proxies/");
+  BindViewToData(proxy_select_view, proxy_data, update_one_line);
+})()
+</script>
+</body>
