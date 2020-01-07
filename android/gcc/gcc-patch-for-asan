@@ -1,14 +1,14 @@
-commit 26fe1963b4ec00c04bd0fb0801077aaf3631bcf7
+commit a87625307a8baef6640ca1c7fdc037fad2094d05
 Author: lin zuojian <manjian2006@gmail.com>
 Date:   Tue Dec 5 15:10:59 2017 +0800
 
-    asan 8.1
+    asan 9.2
 
 diff --git a/configure b/configure
-index 0601395512f..4b708b08e62 100755
+index abd93a990a9..9217051304f 100755
 --- a/configure
 +++ b/configure
-@@ -6743,7 +6743,7 @@ if test "x$CFLAGS_FOR_TARGET" = x; then
+@@ -6839,7 +6839,7 @@ if test "x$CFLAGS_FOR_TARGET" = x; then
      esac
      case " $CFLAGS " in
        *" -g "* | *" -g3 "*) ;;
@@ -17,7 +17,7 @@ index 0601395512f..4b708b08e62 100755
      esac
    fi
  fi
-@@ -6760,7 +6760,7 @@ if test "x$CXXFLAGS_FOR_TARGET" = x; then
+@@ -6856,7 +6856,7 @@ if test "x$CXXFLAGS_FOR_TARGET" = x; then
      esac
      case " $CXXFLAGS " in
        *" -g "* | *" -g3 "*) ;;
@@ -26,8 +26,65 @@ index 0601395512f..4b708b08e62 100755
      esac
    fi
  fi
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index ddd3b8f4d9d..0889e5d5389 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1022,8 +1022,9 @@ aarch64*-*-freebsd*)
+ 	tm_defines="${tm_defines}  TARGET_DEFAULT_ASYNC_UNWIND_TABLES=1"
+ 	;;
+ aarch64*-*-linux*)
+-	tm_file="${tm_file} dbxelf.h elfos.h gnu-user.h linux.h glibc-stdint.h"
++	tm_file="${tm_file} dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h"
+ 	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-linux.h"
++	extra_options="${extra_options} linux-android.opt"
+ 	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-linux"
+ 	tm_defines="${tm_defines}  TARGET_DEFAULT_ASYNC_UNWIND_TABLES=1"
+ 	case $target in
+diff --git a/gcc/config/aarch64/aarch64-linux.h b/gcc/config/aarch64/aarch64-linux.h
+index 5e8b34ded03..e1700bf7db6 100644
+--- a/gcc/config/aarch64/aarch64-linux.h
++++ b/gcc/config/aarch64/aarch64-linux.h
+@@ -62,22 +62,33 @@
+   " %{mfix-cortex-a53-843419:--fix-cortex-a53-843419}"
+ #endif
+ 
+-#define LINK_SPEC LINUX_TARGET_LINK_SPEC \
++#define LINK_SPEC LINUX_OR_ANDROID_LD (LINUX_TARGET_LINK_SPEC,				\
++		       LINUX_TARGET_LINK_SPEC " " ANDROID_LINK_SPEC) \
+                   CA53_ERR_835769_SPEC \
+                   CA53_ERR_843419_SPEC
+ 
++#undef	STARTFILE_SPEC
++#define STARTFILE_SPEC \
++  LINUX_OR_ANDROID_LD (GNU_USER_TARGET_STARTFILE_SPEC, ANDROID_STARTFILE_SPEC)
++
+ #define GNU_USER_TARGET_MATHFILE_SPEC \
+   "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s}"
+ 
+ #undef ENDFILE_SPEC
+-#define ENDFILE_SPEC   \
+-  GNU_USER_TARGET_MATHFILE_SPEC " " \
+-  GNU_USER_TARGET_ENDFILE_SPEC
++#define ENDFILE_SPEC \
++  LINUX_OR_ANDROID_LD (GNU_USER_TARGET_MATHFILE_SPEC " " \
++      GNU_USER_TARGET_ENDFILE_SPEC, ANDROID_ENDFILE_SPEC)
++
++#undef  LIB_SPEC
++#define LIB_SPEC							\
++  LINUX_OR_ANDROID_LD (GNU_USER_TARGET_LIB_SPEC,			\
++		    GNU_USER_TARGET_NO_PTHREADS_LIB_SPEC " " ANDROID_LIB_SPEC)
+ 
+ #define TARGET_OS_CPP_BUILTINS()		\
+   do						\
+     {						\
+ 	GNU_USER_TARGET_OS_CPP_BUILTINS();	\
++	ANDROID_TARGET_OS_CPP_BUILTINS();		\
+     }						\
+   while (0)
+ 
 diff --git a/gcc/config/arm/arm.c b/gcc/config/arm/arm.c
-index 08120c6272b..125aa9afec5 100644
+index 45abcd89963..a6f64825a1c 100644
 --- a/gcc/config/arm/arm.c
 +++ b/gcc/config/arm/arm.c
 @@ -339,7 +339,7 @@ static const struct attribute_spec arm_attribute_table[] =
@@ -39,7 +96,7 @@ index 08120c6272b..125aa9afec5 100644
      NULL },
    /* Interrupt Service Routines have special prologue and epilogue requirements.  */
    { "isr",          0, 1, false, false, false, false, arm_handle_isr_attribute,
-@@ -30506,7 +30506,7 @@ arm_sched_can_speculate_insn (rtx_insn *insn)
+@@ -30634,7 +30634,7 @@ arm_sched_can_speculate_insn (rtx_insn *insn)
  static unsigned HOST_WIDE_INT
  arm_asan_shadow_offset (void)
  {
@@ -68,10 +125,10 @@ index 8f1307c557f..f92d4bcfa72 100644
  MULTILIB_OSDIRNAMES  =
  
 diff --git a/gcc/config/i386/i386.c b/gcc/config/i386/i386.c
-index 6a2141e48db..1127c8a8108 100644
+index 2b37296e537..5d11fb88719 100644
 --- a/gcc/config/i386/i386.c
 +++ b/gcc/config/i386/i386.c
-@@ -7012,9 +7012,10 @@ ix86_legitimate_combined_insn (rtx_insn *insn)
+@@ -6902,9 +6902,10 @@ ix86_legitimate_combined_insn (rtx_insn *insn)
  static unsigned HOST_WIDE_INT
  ix86_asan_shadow_offset (void)
  {
@@ -86,10 +143,10 @@ index 6a2141e48db..1127c8a8108 100644
  
  /* Argument support functions.  */
 diff --git a/gcc/config/linux-android.h b/gcc/config/linux-android.h
-index 9f3985d23b8..2694cd4a5ad 100644
+index 1dc0277d329..93ebcda353b 100644
 --- a/gcc/config/linux-android.h
 +++ b/gcc/config/linux-android.h
-@@ -44,9 +44,7 @@
+@@ -50,9 +50,7 @@
    "%{!mglibc:%{!muclibc:%{!mbionic: -mbionic}}} "			\
    "%{!fno-pic:%{!fno-PIC:%{!fpic:%{!fPIC: -fPIC}}}}"
  
@@ -100,21 +157,34 @@ index 9f3985d23b8..2694cd4a5ad 100644
  
  #define ANDROID_LIB_SPEC \
    "%{!static: -ldl}"
+diff --git a/gcc/lto/lto-partition.c b/gcc/lto/lto-partition.c
+index 6972e6e9ef3..4efdbb1e1f7 100644
+--- a/gcc/lto/lto-partition.c
++++ b/gcc/lto/lto-partition.c
+@@ -147,6 +147,8 @@ add_symbol_to_partition_1 (ltrans_partition part, symtab_node *node)
+   if (c == SYMBOL_PARTITION && !DECL_COMDAT (node->decl)
+       && symbol_partitioned_p (node))
+     return false;
++  if (c == SYMBOL_EXTERNAL)
++    return true;
+ 
+   /* Be sure that we never try to duplicate partitioned symbol
+      or add external symbol.  */
 diff --git a/libbacktrace/elf.c b/libbacktrace/elf.c
-index 0fd5e6f9d0d..4442d5c849a 100644
+index f3988ec02a0..32f5e121a8e 100644
 --- a/libbacktrace/elf.c
 +++ b/libbacktrace/elf.c
-@@ -3298,7 +3298,7 @@ backtrace_initialize (struct backtrace_state *state, const char *filename,
- 
+@@ -3390,7 +3390,7 @@ backtrace_initialize (struct backtrace_state *state, const char *filename,
    ret = elf_add (state, filename, descriptor, 0, error_callback, data,
- 		 &elf_fileline_fn, &found_sym, &found_dwarf, 1, 0);
+ 		 &elf_fileline_fn, &found_sym, &found_dwarf, NULL, 1, 0, NULL,
+ 		 0);
 -  if (!ret)
 +  if (!ret || ret < 0)
      return 0;
  
    pd.state = state;
 diff --git a/libbacktrace/fileline.c b/libbacktrace/fileline.c
-index e5673068379..6ab2338fa44 100644
+index 369c9deed1b..68e923e4d34 100644
 --- a/libbacktrace/fileline.c
 +++ b/libbacktrace/fileline.c
 @@ -54,7 +54,7 @@ fileline_initialize (struct backtrace_state *state,
@@ -136,10 +206,10 @@ index e5673068379..6ab2338fa44 100644
  
    return state->fileline_fn (state, pc, callback, error_callback, data);
 diff --git a/libsanitizer/asan/Makefile.am b/libsanitizer/asan/Makefile.am
-index f105b035796..8c014d043da 100644
+index 867240d2445..8b98c1d3bc5 100644
 --- a/libsanitizer/asan/Makefile.am
 +++ b/libsanitizer/asan/Makefile.am
-@@ -55,7 +55,7 @@ endif
+@@ -57,7 +57,7 @@ endif
  if LIBBACKTRACE_SUPPORTED
  libasan_la_LIBADD += $(top_builddir)/libbacktrace/libsanitizer_libbacktrace.la
  endif
@@ -148,11 +218,24 @@ index f105b035796..8c014d043da 100644
  
  libasan_la_LDFLAGS = -version-info `grep -v '^\#' $(srcdir)/libtool-version` $(link_libasan)
  
+diff --git a/libsanitizer/asan/asan_premap_shadow.cc b/libsanitizer/asan/asan_premap_shadow.cc
+index 4273ae5e389..535b9a6ef10 100644
+--- a/libsanitizer/asan/asan_premap_shadow.cc
++++ b/libsanitizer/asan/asan_premap_shadow.cc
+@@ -70,7 +70,7 @@ decltype(__asan_shadow)* __asan_premap_shadow() {
+ 
+ // __asan_shadow is a "function" that has the same address as the first byte of
+ // the shadow mapping.
+-INTERFACE_ATTRIBUTE __attribute__((ifunc("__asan_premap_shadow"))) void
++INTERFACE_ATTRIBUTE void
+ __asan_shadow();
+ }
+ 
 diff --git a/libsanitizer/configure b/libsanitizer/configure
-index 4695bc7d4f7..f60346b597e 100755
+index 226da62cf5a..218f0517009 100755
 --- a/libsanitizer/configure
 +++ b/libsanitizer/configure
-@@ -8580,7 +8580,7 @@ if test "${enable_shared+set}" = set; then :
+@@ -8872,7 +8872,7 @@ if test "${enable_shared+set}" = set; then :
      yes) enable_shared=yes ;;
      no) enable_shared=no ;;
      *)
@@ -161,7 +244,7 @@ index 4695bc7d4f7..f60346b597e 100755
        # Look at the argument we got.  We use all the common list separators.
        lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
        for pkg in $enableval; do
-@@ -15524,7 +15524,7 @@ done
+@@ -15814,7 +15814,7 @@ done
  
  
  # Common libraries that we need to link against for all sanitizer libs.
@@ -191,10 +274,10 @@ index 6fd5ef74274..c9633b50331 100644
  PRE_SYSCALL(add_key)(const void *_type, const void *_description,
                       const void *_payload, long plen, long destringid) {
 diff --git a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
-index 23a014823c4..c03b1d209d3 100644
+index 3a906538129..3cff2211e51 100644
 --- a/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
 +++ b/libsanitizer/sanitizer_common/sanitizer_platform_limits_linux.cc
-@@ -74,12 +74,6 @@ COMPILER_CHECK(struct_kernel_stat_sz == sizeof(struct stat));
+@@ -77,12 +77,6 @@ COMPILER_CHECK(struct_kernel_stat_sz == sizeof(struct stat));
  COMPILER_CHECK(struct_kernel_stat64_sz == sizeof(struct stat64));
  #endif
  
@@ -207,7 +290,7 @@ index 23a014823c4..c03b1d209d3 100644
  #if !SANITIZER_ANDROID
  COMPILER_CHECK(sizeof(struct __sanitizer_perf_event_attr) <=
                 sizeof(struct perf_event_attr));
-@@ -94,14 +88,5 @@ COMPILER_CHECK(iocb_cmd_preadv == IOCB_CMD_PREADV);
+@@ -97,14 +91,5 @@ COMPILER_CHECK(iocb_cmd_preadv == IOCB_CMD_PREADV);
  COMPILER_CHECK(iocb_cmd_pwritev == IOCB_CMD_PWRITEV);
  #endif
  
@@ -223,7 +306,7 @@ index 23a014823c4..c03b1d209d3 100644
  
  #endif  // SANITIZER_LINUX
 diff --git a/libstdc++-v3/config/os/bionic/ctype_base.h b/libstdc++-v3/config/os/bionic/ctype_base.h
-index 2eb5dcaff79..070efce873d 100644
+index 6d60dcd518f..cb15669d280 100644
 --- a/libstdc++-v3/config/os/bionic/ctype_base.h
 +++ b/libstdc++-v3/config/os/bionic/ctype_base.h
 @@ -27,6 +27,16 @@
@@ -243,21 +326,8 @@ index 2eb5dcaff79..070efce873d 100644
  
  namespace std _GLIBCXX_VISIBILITY(default)
  {
-diff --git a/libstdc++-v3/include/bits/hashtable_policy.h b/libstdc++-v3/include/bits/hashtable_policy.h
-index 3ff6b14a90f..bc8a47fc3e3 100644
---- a/libstdc++-v3/include/bits/hashtable_policy.h
-+++ b/libstdc++-v3/include/bits/hashtable_policy.h
-@@ -511,6 +511,8 @@ namespace __detail
-   {
- #if __SIZEOF_SIZE_T__ >= 8
-     std::uint_fast64_t __x = __n;
-+#elif defined(__ANDROID__)
-+    uint_fast32_t __x = __n;
- #else
-     std::uint_fast32_t __x = __n;
- #endif
 diff --git a/libstdc++-v3/libsupc++/guard.cc b/libstdc++-v3/libsupc++/guard.cc
-index 3a2ec3ad0d6..0d2c726563b 100644
+index 2bf20c6f304..6bf0440c38e 100644
 --- a/libstdc++-v3/libsupc++/guard.cc
 +++ b/libstdc++-v3/libsupc++/guard.cc
 @@ -34,7 +34,11 @@
@@ -273,7 +343,7 @@ index 3a2ec3ad0d6..0d2c726563b 100644
  # define _GLIBCXX_USE_FUTEX
  # define _GLIBCXX_FUTEX_WAIT 0
 diff --git a/libstdc++-v3/src/c++11/futex.cc b/libstdc++-v3/src/c++11/futex.cc
-index f5000aa77b3..d8cf12edebc 100644
+index 3ea32f752bb..ad02800bdf7 100644
 --- a/libstdc++-v3/src/c++11/futex.cc
 +++ b/libstdc++-v3/src/c++11/futex.cc
 @@ -27,7 +27,11 @@
@@ -290,7 +360,7 @@ index f5000aa77b3..d8cf12edebc 100644
  #include <sys/time.h>
  #include <errno.h>
 diff --git a/ltmain.sh b/ltmain.sh
-index 9503ec85d70..6db31ed0a37 100644
+index 79f9ba89af5..1b68c7801ec 100644
 --- a/ltmain.sh
 +++ b/ltmain.sh
 @@ -7087,7 +7087,7 @@ EOF
