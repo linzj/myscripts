@@ -1,0 +1,175 @@
+commit 3127e21fc9fa590477632a2587bd05b6c5896392
+Author: linzj <zuojian.lzj@alibaba-inc.com>
+Date:   Mon Nov 11 13:53:46 2019 +0800
+
+    android support.
+
+diff --git a/bfd/elf-eh-frame.c b/bfd/elf-eh-frame.c
+index 6919ac3031..174817c2a5 100644
+--- a/bfd/elf-eh-frame.c
++++ b/bfd/elf-eh-frame.c
+@@ -1518,6 +1518,12 @@ _bfd_elf_discard_section_eh_frame
+ 			&& cookie->rel->r_offset == ent->offset + 8);
+ 	    keep = !(*reloc_symbol_deleted_p) (ent->offset + 8, cookie);
+ 	  }
++
++        if (info->eh_frame_hdr_type == 0)
++          {
++            keep = 0;
++          }
++
+ 	if (keep)
+ 	  {
+ 	    if (bfd_link_pic (info)
+diff --git a/gdb/c-typeprint.c b/gdb/c-typeprint.c
+index 43ad3b3e0e..27d87a228f 100644
+--- a/gdb/c-typeprint.c
++++ b/gdb/c-typeprint.c
+@@ -1212,6 +1212,12 @@ c_type_print_base_struct_union (struct type *type, struct ui_file *stream,
+ 	      fprintf_filtered (stream, " : %d",
+ 				TYPE_FIELD_BITSIZE (type, i));
+ 	    }
++	    else if (!field_is_static (&TYPE_FIELD (type, i)))
++	      {
++	        /* print the bit pos.  */
++	        fprintf_filtered (stream, " bitpos: %ld",
++	                          TYPE_FIELD_BITPOS (type, i));
++	      }
+ 	  fprintf_filtered (stream, ";\n");
+ 	}
+ 
+diff --git a/gdb/gdbserver/fork-child.c b/gdb/gdbserver/fork-child.c
+index ddd73094e6..04398bc03b 100644
+--- a/gdb/gdbserver/fork-child.c
++++ b/gdb/gdbserver/fork-child.c
+@@ -101,10 +101,12 @@ post_fork_inferior (int pid, const char *program)
+ #ifdef SIGTTOU
+   signal (SIGTTOU, SIG_IGN);
+   signal (SIGTTIN, SIG_IGN);
++#ifndef __ANDROID__
+   terminal_fd = fileno (stderr);
+   old_foreground_pgrp = tcgetpgrp (terminal_fd);
+   tcsetpgrp (terminal_fd, pid);
+   atexit (restore_old_foreground_pgrp);
++#endif
+ #endif
+ 
+   startup_inferior (pid, START_INFERIOR_TRAPS_EXPECTED,
+diff --git a/gdb/gdbserver/linux-low.c b/gdb/gdbserver/linux-low.c
+index 3113017ae6..6b9aab9bf3 100644
+--- a/gdb/gdbserver/linux-low.c
++++ b/gdb/gdbserver/linux-low.c
+@@ -107,7 +107,7 @@
+ # include "nat/linux-btrace.h"
+ # include "gdbsupport/btrace-common.h"
+ #endif
+-
++#define HAVE_ELF32_AUXV_T
+ #ifndef HAVE_ELF32_AUXV_T
+ /* Copied from glibc's elf.h.  */
+ typedef struct
+@@ -122,7 +122,7 @@ typedef struct
+     } a_un;
+ } Elf32_auxv_t;
+ #endif
+-
++#define HAVE_ELF64_AUXV_T
+ #ifndef HAVE_ELF64_AUXV_T
+ /* Copied from glibc's elf.h.  */
+ typedef struct
+@@ -5909,7 +5909,11 @@ linux_request_interrupt (void)
+ {
+   /* Send a SIGINT to the process group.  This acts just like the user
+      typed a ^C on the controlling terminal.  */
++#if defined(__ANDROID__)
++  kill (signal_pid, SIGINT);
++#else
+   kill (-signal_pid, SIGINT);
++#endif
+ }
+ 
+ /* Copy LEN bytes from inferior's auxiliary vector starting at OFFSET
+diff --git a/gdb/gdbserver/remote-utils.c b/gdb/gdbserver/remote-utils.c
+index 665fc66c53..4678707c60 100644
+--- a/gdb/gdbserver/remote-utils.c
++++ b/gdb/gdbserver/remote-utils.c
+@@ -70,6 +70,10 @@
+ #include <sys/iomgr.h>
+ #endif /* __QNX__ */
+ 
++#if HAVE_SYS_UN_H
++#include <sys/un.h>
++#endif
++
+ #ifndef HAVE_SOCKLEN_T
+ typedef int socklen_t;
+ #endif
+@@ -200,8 +204,7 @@ handle_accept_event (int err, gdb_client_data client_data)
+     fprintf (stderr, _("Could not obtain remote address: %s\n"),
+ 	     gai_strerror (r));
+   else
+-    fprintf (stderr, _("Remote debugging from host %s, port %s\n"),
+-	     orig_host, orig_port);
++    fprintf (stderr, _ ("Remote debugging started\n"));
+ 
+   enable_async_notification (remote_desc);
+ 
+@@ -326,9 +329,48 @@ remote_prepare (const char *name)
+ void
+ remote_open (const char *name)
+ {
+-  const char *port_str;
++#ifdef HAVE_SYS_UN_H
++  if (name[0] == '+')
++    {
++#ifdef USE_WIN32API
++      error ("Only <host>:<port> is supported on this platform.");
++#else
++      struct sockaddr_un sockaddr;
++      socklen_t sockaddrlen;
++
++      name += 1; // skip the initial +
++
++      listen_desc = socket (AF_UNIX, SOCK_STREAM, 0);
++      if (listen_desc < 0)
++        perror_with_name ("Could not create Unix-domain socket");
++
++      memset (&sockaddr, 0, sizeof sockaddr);
++      sockaddr.sun_family = AF_UNIX;
++      strlcpy (sockaddr.sun_path, name, sizeof sockaddr.sun_path);
++
++      unlink (sockaddr.sun_path);
++      sockaddrlen
++          = sizeof (sockaddr.sun_family) + strlen (sockaddr.sun_path) + 1;
++      if (bind (listen_desc, (struct sockaddr *)&sockaddr, sockaddrlen) < 0)
++        perror_with_name ("Could not bind to Unix-domain socket");
++      if (listen (listen_desc, 1) < 0)
++        perror_with_name ("Could not listen to Unix-domain socket");
++
++      fprintf (stderr, "Listening on Unix socket %s\n", sockaddr.sun_path);
++      fflush (stderr);
+ 
+-  port_str = strchr (name, ':');
++      /* Register the event loop handler.  */
++      add_file_handler (listen_desc, handle_accept_event, NULL);
++
++#endif
++    }
++  else
++#endif /* HAVE_SYS_UN_H */
++    {
++
++      const char *port_str;
++
++      port_str = strchr (name, ':');
+ #ifdef USE_WIN32API
+   if (port_str == NULL)
+     error ("Only HOST:PORT is supported on this platform.");
+@@ -414,6 +456,7 @@ remote_open (const char *name)
+       /* Register the event loop handler.  */
+       add_file_handler (listen_desc, handle_accept_event, NULL);
+     }
++    }
+ }
+ 
+ void
