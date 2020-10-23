@@ -32,6 +32,8 @@ def DoSendMail():
         print('nothing to send this time')
         return
 
+    last_ipv4 = ipv4
+    last_ipv6 = ipv6
     message = MIMEMultipart("alternative")
     message["Subject"] = "my ip"
     message["From"] = sender_email
