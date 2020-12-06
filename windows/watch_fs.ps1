@@ -82,7 +82,7 @@
                 if (Test-Path $target_path -PathType Leaf) {
                     return
                 }
-                Start-Process -NoNewWindow -FilePath "D:\ffmpeg-20161218-02aa070-win64-static\bin\ffmpeg " -ArgumentList  "-i", "$path", "-c:v", "libx265", "-strict", "experimental", "-c:a", "aac", "$target_path"
+                Start-Process -NoNewWindow -FilePath "D:\ffmpeg-20161218-02aa070-win64-static\bin\ffmpeg " -ArgumentList  "-i", "$path", "-movflags", "use_metadata_tags", "-c:v", "libx265", "-strict", "experimental", "-c:a", "aac", "$target_path"
               }
 ### DECIDE WHICH EVENTS SHOULD BE WATCHED
 ### SET FOLDER TO WATCH + FILES TO WATCH + SUBFOLDERS YES/NO
