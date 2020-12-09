@@ -34,7 +34,7 @@ map <C-F10>c :call UpdateCscope() <CR>
 
 
 function! s:insert_gates()
-  let gatename = substitute(toupper(expand("%:t")), "\\.", "_", "g")
+  let gatename = substitute(substitute(toupper(expand("%:t")), "\\.", "_", "g"), "-", "_", "g")
   execute "normal! i#ifndef " . gatename
   execute "normal! o#define " . gatename
   execute "normal! Go#endif  // " . gatename
@@ -55,3 +55,5 @@ if &term =~ '256color'
     " work properly when Vim is used inside tmux and GNU screen.
     set t_ut=
 endif
+
+com! -nargs=1 Search :let @/='\V'.escape(<q-args>, '\\')| normal! n
