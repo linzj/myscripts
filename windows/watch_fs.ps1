@@ -13,7 +13,7 @@
             $path,
             $target_path)
 
-        $sb = [scriptblock]::Create("& 'C:\Program Files\ImageMagick-7.0.10-Q16\magick.exe' convert -strip -interlace Plane -gaussian-blur 0.05 -quality 85% $path $target_path ; & D:\pic_from_camera\exiftool  -overwrite_original -TagsFromFile $path -all:all>all:all $target_path")
+        $sb = [scriptblock]::Create("& 'C:\Program Files\ImageMagick-7.0.10-Q16\magick.exe' convert -interlace Plane -gaussian-blur 0.05 -quality 85% $path $target_path")
         $job = Start-Job -ScriptBlock $sb
     }
 
