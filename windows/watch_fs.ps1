@@ -13,8 +13,8 @@
             $path,
             $target_path)
 
-        Start-Process -NoNewWindow -Wait -FilePath "C:\Program Files\ImageMagick-7.0.10-Q16\magick.exe" -ArgumentList  "convert", "-strip", "-interlace", "Plane", "-gaussian-blur", "0.05", "-quality", "85%", "$path", "$target_path"
-        Start-Process -NoNewWindow -FilePath "D:\pic_from_camera\exiftool" -ArgumentList  "-overwrite_original", "-TagsFromFile", "$path", "-all:all>all:all", "$target_path"
+        $sb = [scriptblock]::Create("& 'C:\Program Files\ImageMagick-7.0.10-Q16\magick.exe' convert -strip -interlace Plane -gaussian-blur 0.05 -quality 85% $path $target_path ; & D:\pic_from_camera\exiftool  -overwrite_original -TagsFromFile $path -all:all>all:all $target_path")
+        $job = Start-Job -ScriptBlock $sb
     }
 
     $writeaction = { $path = $Event.SourceEventArgs.FullPath
