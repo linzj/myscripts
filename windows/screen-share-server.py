@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import subprocess, socket, select
-import errno
+import errno, sys
+import traceback
 
 def StartFFmpegServer():
     ffmpeg_comm = ['D:\\ffmpeg-20161218-02aa070-win64-static\\bin\\ffmpeg.exe', 
@@ -15,7 +16,7 @@ g_ffmpeg_client_handler = None
 class FFmpegClientHandler:
     def __init__(self, socket):
         self.socket_ = socket
-        self.client_ = []
+        self.clients_ = []
         global g_socket_handler
         g_socket_handler[socket] = self
         socket.setblocking(False)
@@ -23,16 +24,19 @@ class FFmpegClientHandler:
         g_ffmpeg_client_handler = self
 
     def AddClient(self, client):
-        self.client_.append(client)
+        self.clients_.append(client)
+
+    def RemoveClient(self, client):
+        self.clients_.remove(client)
 
     def HandleSelect(self, read_list, write_list, err_list):
         read_list.append(self.socket_)
         err_list.append(self.socket_)
 
     def HandleRead(self):
-        data = self.socket_.recv(4096)
+        data = self.socket_.recv(4 * 1024 * 1024)
         # print(f'read {len(data)} bytes data from ffmpeg')
-        for client in self.client_:
+        for client in self.clients_:
             client.AppendData(data)
 
     def HandleErr(self):
@@ -92,6 +96,7 @@ class ClientHandler:
 
     def HandleErr(self):
         del g_socket_handler[self.socket_]
+        g_ffmpeg_client_handler.RemoveClient(self)
         self.socket_.close()
 
     def AppendData(self, data):
