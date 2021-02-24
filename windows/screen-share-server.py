@@ -7,7 +7,7 @@ import traceback
 
 def StartFFmpegServer():
     ffmpeg_comm = ['D:\\ffmpeg-20161218-02aa070-win64-static\\bin\\ffmpeg.exe', 
-    '-thread_queue_size', '4096', '-f', 'dshow', '-i', 'video=screen-capture-recorder', '-thread_queue_size', '4096', '-f', 'dshow', '-i', 'audio=virtual-audio-capturer', '-acodec', 'aac', '-c:v', 'h264_nvenc', '-preset', 'llhq', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-listen', '1',  '-f', 'mpegts', 'tcp://127.0.0.1:5554']
+    '-thread_queue_size', '4096', '-f', 'dshow', '-i', 'video=screen-capture-recorder', '-thread_queue_size', '4096', '-f', 'dshow', '-i', 'audio=virtual-audio-capturer', '-acodec', 'aac', '-c:v', 'h264_nvenc', '-preset', 'llhq', '-qp', '20', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-listen', '1',  '-f', 'mpegts', 'tcp://127.0.0.1:5554']
     subprocess.Popen(ffmpeg_comm, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 g_socket_handler = {}
