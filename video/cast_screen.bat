@@ -31,5 +31,5 @@ REM ffmpeg.exe -f dshow -i audio="@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE
 mkdir tmp
 cd tmp
 del /q *
-start /b ffmpeg.exe -thread_queue_size 4096 -f dshow -i video="screen-capture-recorder" -thread_queue_size 4096 -f dshow -itsoffset:a 0.2 -i audio="virtual-audio-capturer" -acodec aac -g 120 -c:v h264_nvenc -preset llhq -qp 20 -profile:v high -pix_fmt yuv420p -f hls -hls_time 1.0 -hls_delete_threshold 2 -hls_flags delete_segments+append_list  out.m3u8
+start /b ffmpeg.exe -thread_queue_size 4096 -f dshow -i video="screen-capture-recorder" -thread_queue_size 4096 -f dshow -itsoffset:a 0.4 -i audio="virtual-audio-capturer" -acodec aac -g 120 -c:v h264_nvenc -preset llhq -qp 20 -profile:v high -pix_fmt yuv420p -f hls -hls_time 1.0 -hls_delete_threshold 2 -hls_flags delete_segments+append_list  out.m3u8
 python -m http.server
