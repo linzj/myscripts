@@ -116,6 +116,7 @@ def _get_tag_value(x, i = 0):
    i += 1 # >
    
    # replace self-closing <tag/> by <tag>None</tag> 
+   tag = tag.strip()
    empty_elmt = '<' + tag + ' />'
    closed_elmt = '<' + tag + '>None</'+tag+'>'
    if x.startswith(empty_elmt):
@@ -404,6 +405,15 @@ def _get_serve_ip(target_ip, target_port=80):
     s.close()
     return my_ip
 
+"""
+      self.__logger.setLevel(logging.DEBUG)
+
+      handler = logging.StreamHandler(sys.stdout)
+      handler.setLevel(logging.DEBUG)
+      formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+      handler.setFormatter(formatter)
+      self.__logger.addHandler(handler)
+"""
 class DlnapDevice:
    """ Represents DLNA/UPnP device.
    """
@@ -485,8 +495,10 @@ class DlnapDevice:
           urn = URN_AVTransport_Fmt.format(self.ssdp_version)
       payload = self._payload_from_template(action=action, data=data, urn=urn)
 
+      if not url.startswith('/'):
+          url = '/' + url
       packet = "\r\n".join([
-         'POST /{} HTTP/1.1'.format(url),
+         'POST {} HTTP/1.1'.format(url),
          'User-Agent: {}/{}'.format('dlnap', __version__),
          'Accept: */*',
          'Content-Type: text/xml; charset="utf-8"',
