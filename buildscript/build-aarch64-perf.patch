@@ -1,0 +1,78 @@
+commit 161e54740701a84fc795f19b41f8a1eff9fe7741
+Author: linzj <zuojian.lzj@alibaba-inc.com>
+Date:   Mon Mar 8 10:24:10 2021 +0800
+
+    Fix android build.
+
+diff --git a/build-perf.sh b/build-perf.sh
+new file mode 100644
+index 000000000000..58f6e7a1b5ba
+--- /dev/null
++++ b/build-perf.sh
+@@ -0,0 +1,12 @@
++COMPILER_PREFIX=aarch64-linux-android-
++
++export ARCH=arm64
++export SUBARCH=arm64
++export CROSS_COMPILE=${COMPILER_PREFIX}
++
++cd tools
++export PATH=/home/linzj/android-ndk-r13b/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin:$PATH
++#export CFLAGS="-O2 -g --sysroot=/home/linzj/android-ndk-r13b/platforms/android-21/arch-arm64"
++export EXTRA_CFLAGS="-O2 -g --sysroot=/home/linzj/android-ndk-r13b/platforms/android-24/arch-arm64"
++export WERROR=0
++make V=1 CROSS_COMPILE=${COMPILER_PREFIX} -j9 perf
+diff --git a/tools/build/Makefile.feature b/tools/build/Makefile.feature
+index c1daf4d57518..553b564a7d3a 100644
+--- a/tools/build/Makefile.feature
++++ b/tools/build/Makefile.feature
+@@ -29,6 +29,7 @@ endef
+ #   feature check. ]
+ #
+ FEATURE_TESTS_BASIC :=                  \
++        bionic                         \
+         backtrace                       \
+         dwarf                           \
+         dwarf_getlocations              \
+@@ -77,7 +78,6 @@ FEATURE_TESTS_BASIC :=                  \
+ # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
+ # of all feature tests
+ FEATURE_TESTS_EXTRA :=                  \
+-         bionic                         \
+          compile-32                     \
+          compile-x32                    \
+          cplus-demangle                 \
+@@ -108,6 +108,7 @@ ifeq ($(FEATURE_TESTS),all)
+ endif
+ 
+ FEATURE_DISPLAY ?=              \
++         bionic                 \
+          dwarf                  \
+          dwarf_getlocations     \
+          glibc                  \
+diff --git a/tools/build/feature/test-bionic.c b/tools/build/feature/test-bionic.c
+index 4bcc9776504c..2ef015ffeac2 100644
+--- a/tools/build/feature/test-bionic.c
++++ b/tools/build/feature/test-bionic.c
+@@ -1,7 +1,9 @@
+ // SPDX-License-Identifier: GPL-2.0
+ #include <android/api-level.h>
++#include <stdio.h>
+ 
+ int main(void)
+ {
++  fprintf(stderr, "__ANDROID_API__: %d\n", __ANDROID_API__);
+ 	return __ANDROID_API__;
+ }
+diff --git a/tools/perf/Makefile.config b/tools/perf/Makefile.config
+index 190be4fa5c21..d324a9ed4420 100644
+--- a/tools/perf/Makefile.config
++++ b/tools/perf/Makefile.config
+@@ -347,6 +347,7 @@ ifndef NO_BIONIC
+   $(call feature_check,bionic)
+   ifeq ($(feature-bionic), 1)
+     BIONIC := 1
++		NO_BIONIC := 0
+     CFLAGS += -DLACKS_SIGQUEUE_PROTOTYPE
+     CFLAGS += -DLACKS_OPEN_MEMSTREAM_PROTOTYPE
+     EXTLIBS := $(filter-out -lrt,$(EXTLIBS))
