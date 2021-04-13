@@ -1,0 +1,291 @@
++
++  if (uc_build_pgo_startup_use) {
++    ldflags += [
++      "-Wl,--symbol-ordering-file=" + rebase_path("//") + "uc-startup-list.txt",
++      "-Wl,--no-warn-symbol-ordering",
++      "-Wl,-z,keep-text-section-prefix",
++    ]
++  }
+diff --git a/uc/build/uc_startup_support.cc b/uc/build/uc_startup_support.cc
+new file mode 100644
+index 000000000000..ccac357ecd27
+--- /dev/null
++++ b/uc/build/uc_startup_support.cc
+@@ -0,0 +1,137 @@
++#include <unistd.h>
++#include <stdint.h>
++#include <stdlib.h>
++#include <iterator>
++
++#if defined(__ANDROID__)
++#define LOG_TAG "uc_startup_support"
++#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
++#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
++#include <android/log.h>
++#else
++#include <stdio.h>
++#define LOGD(...) fprintf(stderr, __VA_ARGS__)
++#define LOGE(...) fprintf(stderr, __VA_ARGS__)
++#endif
++extern "C" {
++void mcount();
++extern const uint8_t __ehdr_start;
++extern const uint8_t __preinit_array_end;
++extern const uint8_t _etext;
++}
++
++namespace {
++static const char kDumpPath[] = "/sdcard/dump_%p_%d.blob";
++
++class Global {
++ public:
++  Global();
++  ~Global();
++  void Set(void*);
++
++ private:
++  void DumpTo(const char* path);
++  constexpr static const int kByteShift = 3;
++  constexpr static const int kMaxBitMapSize = (100 * 1024 * 1024) >> kByteShift;
++  constexpr static const size_t kRecordCount = 210000;
++  uint8_t bitmap_[kMaxBitMapSize];
++  ssize_t records_[kRecordCount];
++  ssize_t bitmap_size_;
++  size_t current_record_;
++};
++
++class Destructor {
++ public:
++  Destructor() = default;
++  ~Destructor();
++};
++
++Global* g;
++uint8_t global_storage[sizeof(Global)];
++Destructor destructor;
++
++Global::Global() : current_record_(0) {
++  bitmap_size_ = std::distance(&__preinit_array_end, &_etext);
++  bitmap_size_ >>= kByteShift;
++  if (bitmap_size_ < 0) {
++    LOGE("bitmap_size_ is less than zero: %zd, %p, %p\n", bitmap_size_,
++         &__preinit_array_end, &_etext);
++    abort();
++  }
++  if (bitmap_size_ > kMaxBitMapSize) {
++    LOGE("bitmap_size_ is larger than kMaxBitMapSize: %zd, %p, %p\n",
++         bitmap_size_, &__preinit_array_end, &_etext);
++    abort();
++  }
++
++  LOGD("bitmap_size_: %zd, __preinit_array_end: %p, _etext: %p\n", bitmap_size_,
++       &__preinit_array_end, &_etext);
++}
++
++Global::~Global() {
++  char path[256];
++  snprintf(path, sizeof(path), kDumpPath,
++           reinterpret_cast<void*>(std::distance(
++               &__ehdr_start, reinterpret_cast<const uint8_t*>(&g))), static_cast<int>(getpid()));
++  DumpTo(path);
++}
++
++void Global::Set(void* where) {
++  ssize_t offset =
++      std::distance(&__preinit_array_end, static_cast<const uint8_t*>(where));
++  if (offset < 0) {
++    LOGE("offset is less than zero: %p, __preinit_array_end: %p\n", where,
++         &__preinit_array_end);
++    abort();
++  }
++  ssize_t index, bit_index;
++
++  index = offset >> kByteShift;
++  if (index >= bitmap_size_) {
++    LOGE("index is larger than bitmap_size_. index: %zd, bitmap_size_: %zd\n",
++         index, bitmap_size_);
++    abort();
++  }
++  bit_index = offset & 7;
++  uint8_t& target = bitmap_[index];
++  uint8_t val = __atomic_fetch_or(&target, 1 << bit_index, __ATOMIC_SEQ_CST);
++  if ((val & (1 << bit_index)) == 0) {
++    size_t index = __atomic_fetch_add(&current_record_, 1, __ATOMIC_SEQ_CST);
++    if (index >= kRecordCount)
++      return;
++    __atomic_store_n(&records_[index], offset, __ATOMIC_RELEASE);
++  }
++}
++
++void Global::DumpTo(const char* path) {
++  FILE* f = fopen(path, "wb");
++  if (!f) {
++    LOGE("file cannot be opened");
++    return;
++  }
++  size_t end = __atomic_load_n(&current_record_, __ATOMIC_ACQUIRE);
++  if (end > kRecordCount)
++    end = kRecordCount;
++  for (size_t i = 0; i < end; ++i) {
++    fprintf(f, "%p\n",
++            reinterpret_cast<void*>(
++                __atomic_load_n(&records_[i], __ATOMIC_RELAXED)));
++  }
++  fclose(f);
++}
++
++Destructor::~Destructor() {
++  g->~Global();
++}
++}  // namespace
++
++void mcount() {
++  void* ret = __builtin_return_address(0);
++  if (!g) {
++    g = reinterpret_cast<Global*>(0x1);
++    g = new (global_storage) Global();
++  }
++  if (g == reinterpret_cast<Global*>(0x1))
++    return;
++  g->Set(ret);
++}
+diff --git a/uc/merge-startup-pgo.py b/uc/merge-startup-pgo.py
+new file mode 100644
+index 000000000000..560f6fd22cdc
+--- /dev/null
++++ b/uc/merge-startup-pgo.py
+@@ -0,0 +1,29 @@
++from __future__ import absolute_import, division, print_function
++import sys
++
++def LoadList(FileName):
++    SymbolList = []
++    with open(FileName, 'r') as f:
++        while True:
++            line = f.readline()
++            if not line:
++                break
++            SymbolList.append(line.rstrip())
++    return SymbolList
++
++def WriteSymbols(f, SymbolList, WrittenSet):
++    for Symbol in SymbolList:
++        if Symbol not in WrittenSet:
++            print(Symbol, file=f)
++            WrittenSet.add(Symbol)
++
++def main():
++    level0 = LoadList(sys.argv[1])
++    level1 = LoadList(sys.argv[2])
++    WrittenSet = set()
++    with open('uc-startup-list.txt', 'w') as f:
++        WriteSymbols(f, level0, WrittenSet)
++        WriteSymbols(f, level1, WrittenSet)
++
++if __name__ == '__main__':
++    main()
+diff --git a/uc/process-startup-pgo.py b/uc/process-startup-pgo.py
+new file mode 100644
+index 000000000000..e1b4bb390173
+--- /dev/null
++++ b/uc/process-startup-pgo.py
+@@ -0,0 +1,99 @@
++from __future__ import absolute_import, division, print_function
++import re, sys, subprocess, os, tempfile
++
++symbol_file_name = None
++readelf_exe = './third_party/android_ndk/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-readelf'
++llvm_symbolizer_exe = 'uc/third_party/pgo-llvm-build/bin/llvm-symbolizer'
++
++
++def is_exe(fpath):
++    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
++
++
++def ProcessFile(file_name):
++    processor = TextInstProfProcessor(file_name)
++    processor.Process()
++
++
++class TextInstProfProcessor(object):
++    def __init__(self, file_name):
++        self.file_name = file_name
++        self.function_names = []
++        self.global_re = re.compile('^_GLOBAL_.*')
++        self.text_start = None
++
++    @staticmethod
++    def FindTextStart():
++        popen = subprocess.Popen(
++            [readelf_exe, '-S', symbol_file_name], stdout=subprocess.PIPE)
++        addr = None
++        while True:
++            line = popen.stdout.readline()
++            if not line:
++                break
++            if '.text' not in line:
++                continue
++            e = line.split()
++            addr = int(e[3], 16)
++        return addr
++
++    def PreprocessFile(self):
++        a = []
++        with open(self.file_name, 'r') as f:
++            while True:
++                line = f.readline()
++                if not line:
++                    break
++                n = int(line.rstrip(), 16) + self.text_start
++                a.append('0x{0:x}'.format(n))
++        temp = tempfile.TemporaryFile()
++        temp.write('\n'.join(a))
++        temp.seek(0)
++        return temp
++
++    def Process(self):
++        self.text_start = TextInstProfProcessor.FindTextStart()
++        print('found text start {0:x}'.format(self.text_start))
++        with self.PreprocessFile() as f:
++            self.ProcessFile(f)
++        with open("uc-startup-list.txt", "w") as f:
++            self.WriteRecords(f)
++
++    def ProcessFile(self, f):
++        popen = subprocess.Popen(
++            [
++                llvm_symbolizer_exe, '-demangle=false', '-inlining=false',
++                '-e', symbol_file_name
++            ],
++            stdin=f,
++            stdout=subprocess.PIPE)
++        count = 0
++        while True:
++            line = popen.stdout.readline()
++            if not line:
++                break
++            if line.rstrip() == "":
++                continue
++            m = self.global_re.match(line)
++            if (count & 1) == 0 and not m == 0:
++                self.function_names.append(line.rstrip())
++                if (count & 15) == 0:
++                    print(
++                        'processed {0} lines, current function {1}'.format(
++                            count, line),
++                        file=sys.stderr)
++            count += 1
++
++    def WriteRecords(self, output_file):
++        for function_name in self.function_names:
++            print(function_name, file=output_file)
++
++
++if __name__ == '__main__':
++    if not is_exe(llvm_symbolizer_exe):
++        print(
++            '{0} should be an executable file'.format(llvm_symbolizer_exe),
++            file=sys.stderr)
++        sys.exit(1)
++    symbol_file_name = sys.argv[2]
++    ProcessFile(sys.argv[1])
